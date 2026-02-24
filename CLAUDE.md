@@ -42,7 +42,13 @@ These are resolved. Do not suggest alternatives or re-litigate them.
 | Primary database | PostgreSQL |
 | Backend runtime | Node.js |
 | Frontend framework | React (Next.js strongly preferred for routing + SSR) |
-| Payment processor | Stripe (subscriptions + one-time payments) |
+| Mobile framework | React Native + Expo (Managed Workflow) |
+| Mobile router | Expo Router v3 (file-based, mirrors Next.js App Router) |
+| Mobile token storage | expo-secure-store (iOS Keychain / Android Keystore) — NOT AsyncStorage |
+| Push notifications | OneSignal (unified FCM + APNs) |
+| Payment processor | Stripe (subscriptions + one-time payments) — web only |
+| Mobile payment strategy | Web-only checkout (Netflix model) — NO in-app purchases in native apps |
+| API versioning | All routes prefixed /api/v1/ — required from day one |
 | Email provider | Resend or Loops |
 | Analytics | PostHog |
 | Error tracking | Sentry |
@@ -58,6 +64,7 @@ These are resolved. Do not suggest alternatives or re-litigate them.
 - Platforms other than Instagram (Twitter/X, TikTok, etc. — not in V1 or V2)
 - Agency/multi-client dashboard
 - Desktop app or browser extension
+- In-App Purchase (IAP) inside the native mobile apps — all purchases happen at ghoast.app
 
 If a request touches any of the above, flag it and ask for clarification before writing code.
 
@@ -103,6 +110,26 @@ These values must be stored in a central config file (e.g. `config/queue.js`), n
 
 ---
 
+## Mobile Platform Rules — Non-Negotiable
+
+1. **Never use AsyncStorage for tokens.** All JWT access tokens and refresh tokens on native mobile must be stored in `expo-secure-store` (iOS Keychain / Android Keystore). AsyncStorage is unencrypted and must never hold sensitive data.
+
+2. **Always use /api/v1/ prefix on all routes.** Mobile apps cannot be force-updated. Version the API from day one so old app versions don't break when the API changes. No exceptions.
+
+3. **Never implement in-app purchases (IAP) in native apps without explicit approval.** All purchases go through `ghoast.app/billing` in a browser. Apple IAP (30% cut) and Google Play Billing (15% cut) are explicitly rejected for Ghoast's price point. If IAP is ever added, it is a major architectural decision requiring a separate planning session.
+
+4. **Never display pricing inside the native app.** Showing prices inside the app without IAP is an App Store policy violation. The "Upgrade" button opens the browser — no prices shown in-app.
+
+5. **Never call Instagram API from the mobile client.** All Instagram API calls are server-side. The mobile app calls Ghoast's own `/api/v1/` endpoints only. This reduces Instagram detection surface and keeps session tokens off user devices.
+
+6. **Always send X-Platform: mobile header on native app API requests.** This tells the API to return the refresh token in the response body (instead of setting an httpOnly cookie, which doesn't work in native apps).
+
+7. **Never store session tokens or encryption keys in mobile app.** `EXPO_PUBLIC_*` variables are bundled into the app binary and visible to anyone who extracts it. Only non-secret values (API base URL, OneSignal App ID) go in mobile env.
+
+8. **OTA updates are for JS-only changes.** Do not use `eas update` to ship changes that require new native modules, updated permissions, or modified `app.json`. Those require a full `eas build` and store review cycle.
+
+---
+
 ## File Structure (Expected)
 
 ```
@@ -112,24 +139,32 @@ ghoast/
 ├── TECH-STACK.md
 ├── DESIGN-NOTES.md
 ├── GHOAST-PRD.md
+├── MASTER-BUILD-PROMPT.md
+├── MOBILE-ARCHITECTURE.md
+├── PLATFORM-COMPLIANCE.md
 ├── apps/
 │   ├── web/                   ← Next.js frontend
 │   │   ├── app/               ← App router pages
 │   │   ├── components/        ← React components
 │   │   └── lib/               ← Client-side utilities
-│   └── api/                   ← Node.js backend (Express or Fastify)
-│       ├── routes/            ← Route handlers
-│       ├── services/          ← Business logic (scan, scoring, queue)
-│       ├── workers/           ← BullMQ worker definitions
-│       ├── db/                ← Database models and migrations
-│       ├── lib/               ← Shared utilities
-│       │   ├── instagram.js   ← Instagram private API client
-│       │   ├── encryption.js  ← AES-256 encrypt/decrypt for session tokens
-│       │   └── scoring.js     ← Ghost scoring algorithm
-│       └── config/
-│           └── queue.js       ← All queue timing constants
+│   ├── api/                   ← Node.js backend (Fastify)
+│   │   ├── routes/            ← Route handlers (all prefixed /api/v1/)
+│   │   ├── services/          ← Business logic (scan, scoring, queue)
+│   │   ├── workers/           ← BullMQ worker definitions
+│   │   ├── db/                ← Database models and migrations
+│   │   ├── lib/               ← Shared utilities
+│   │   │   ├── instagram.js   ← Instagram private API client
+│   │   │   ├── encryption.js  ← AES-256 encrypt/decrypt for session tokens
+│   │   │   └── scoring.js     ← Ghost scoring algorithm
+│   │   └── config/
+│   │       └── queue.js       ← All queue timing constants
+│   └── mobile/                ← React Native + Expo
+│       ├── app/               ← Expo Router screens
+│       ├── components/        ← React Native components
+│       └── lib/               ← Mobile utilities (api.ts, auth.ts, notifications.ts)
 ├── packages/
-│   └── db/                    ← Shared DB schema / migrations (if monorepo)
+│   ├── db/                    ← Shared DB schema / migrations
+│   └── design-tokens/         ← Shared colour/tier/spacing tokens (web + mobile)
 └── .env.example               ← Template for required environment variables
 ```
 
@@ -168,6 +203,10 @@ POSTHOG_API_KEY=
 
 # Error tracking
 SENTRY_DSN=
+
+# Push notifications
+ONESIGNAL_APP_ID=
+ONESIGNAL_API_KEY=
 ```
 
 ---
@@ -180,6 +219,7 @@ npm run dev             # Start all services (web + api + workers)
 npm run dev:web         # Frontend only
 npm run dev:api         # Backend only
 npm run dev:worker      # Queue worker only
+npm run dev:mobile      # Expo dev server (mobile)
 
 # Database
 npm run db:migrate      # Run pending migrations
@@ -194,6 +234,12 @@ npm run queue:clear     # Clear all jobs (dev only)
 npm test               # Run all tests
 npm run test:unit      # Unit tests only
 npm run test:e2e       # End-to-end tests
+
+# Mobile builds (EAS)
+eas build --platform ios --profile preview      # TestFlight build
+eas build --platform android --profile preview  # APK for testing
+eas build --platform all --profile production   # Production store build
+eas update --branch production --message "..."  # OTA JS-only update
 
 # Build
 npm run build          # Build all packages for production
@@ -234,3 +280,5 @@ Full product requirements: `GHOAST-PRD.md`
 Full tech stack decisions: `TECH-STACK.md`
 Full design system: `DESIGN-NOTES.md`
 Full feature requirements: `REQUIREMENTS.md`
+Mobile architecture: `MOBILE-ARCHITECTURE.md`
+Platform compliance: `PLATFORM-COMPLIANCE.md`
