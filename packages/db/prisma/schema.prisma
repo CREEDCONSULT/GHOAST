@@ -1,0 +1,259 @@
+// Ghoast — Prisma Schema
+// All 8 tables per TECH-STACK.md and GHOAST-PRD.md Section 4.2
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id                String              @id @default(uuid())
+  email             String              @unique
+  passwordHash      String              @map("password_hash")
+  tier              UserTier            @default(FREE)
+  stripeCustomerId  String?             @unique @map("stripe_customer_id")
+  creditBalance     Int                 @default(0) @map("credit_balance")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  instagramAccounts InstagramAccount[]
+  subscriptions     Subscription[]
+  creditTransactions CreditTransaction[]
+
+  @@map("users")
+}
+
+enum UserTier {
+  FREE
+  PRO
+  PRO_PLUS
+
+  @@map("user_tier")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INSTAGRAM ACCOUNTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model InstagramAccount {
+  id                    String    @id @default(uuid())
+  userId                String    @map("user_id")
+  instagramUserId       String    @map("instagram_user_id")
+  handle                String
+  displayName           String?   @map("display_name")
+  profilePicUrl         String?   @map("profile_pic_url")
+  followersCount        Int       @default(0) @map("followers_count")
+  followingCount        Int       @default(0) @map("following_count")
+  // Encrypted session token — AES-256-CBC
+  // NEVER return these fields in any API response
+  sessionTokenEncrypted String    @map("session_token_encrypted")
+  sessionTokenIv        String    @map("session_token_iv")
+  lastScannedAt         DateTime? @map("last_scanned_at")
+  queuePaused           Boolean   @default(false) @map("queue_paused")
+  pendingDisconnect     Boolean   @default(false) @map("pending_disconnect")
+  disconnectAt          DateTime? @map("disconnect_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ghosts        Ghost[]
+  queueJobs     UnfollowQueueJob[]
+  queueSessions QueueSession[]
+  snapshots     AccountSnapshot[]
+
+  @@unique([userId, instagramUserId])
+  @@index([userId])
+  @@map("instagram_accounts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GHOSTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Ghost {
+  id                  String    @id @default(uuid())
+  accountId           String    @map("account_id")
+  instagramUserId     String    @map("instagram_user_id")
+  handle              String
+  displayName         String?   @map("display_name")
+  profilePicUrl       String?   @map("profile_pic_url")
+  followersCount      Int       @default(0) @map("followers_count")
+  followingCount      Int       @default(0) @map("following_count")
+  isVerified          Boolean   @default(false) @map("is_verified")
+  accountType         AccountType @default(PERSONAL) @map("account_type")
+  lastPostDate        DateTime? @map("last_post_date")
+  // Scoring — server-derived, never accepted from user input
+  priorityScore       Int       @map("priority_score")        // 0–100
+  tier                Int       @map("tier")                  // 1–5
+  scoreAccountType    Int       @default(0) @map("score_account_type")   // 0–20
+  scoreRatio          Int       @default(0) @map("score_ratio")           // 0–20
+  scoreEngagement     Int       @default(0) @map("score_engagement")     // 0–20
+  scoreSizeBand       Int       @default(0) @map("score_size_band")       // 0–20
+  scorePostRecency    Int       @default(0) @map("score_post_recency")   // 0–20
+  engagementUnknown   Boolean   @default(false) @map("engagement_unknown")
+  isWhitelisted       Boolean   @default(false) @map("is_whitelisted")
+  removedAt           DateTime? @map("removed_at")             // set when unfollowed
+  firstSeenAt         DateTime  @default(now()) @map("first_seen_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  account   InstagramAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  queueJobs UnfollowQueueJob[]
+
+  @@unique([accountId, instagramUserId])
+  @@index([accountId, tier, priorityScore])
+  @@index([accountId, removedAt])
+  @@map("ghosts")
+}
+
+enum AccountType {
+  PERSONAL
+  CREATOR
+  BRAND
+  CELEBRITY
+
+  @@map("account_type")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNFOLLOW QUEUE JOBS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model UnfollowQueueJob {
+  id          String         @id @default(uuid())
+  accountId   String         @map("account_id")
+  ghostId     String         @map("ghost_id")
+  bullmqJobId String?        @map("bullmq_job_id")
+  status      QueueJobStatus @default(PENDING)
+  creditUsed  Boolean        @default(false) @map("credit_used")
+  errorMsg    String?        @map("error_msg")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  processedAt DateTime?      @map("processed_at")
+
+  account InstagramAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ghost   Ghost            @relation(fields: [ghostId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, status])
+  @@index([accountId, createdAt])
+  @@map("unfollow_queue_jobs")
+}
+
+enum QueueJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
+
+  @@map("queue_job_status")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUEUE SESSIONS (tracks daily cap + rate-limit state)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model QueueSession {
+  id               String    @id @default(uuid())
+  accountId        String    @map("account_id")
+  date             String    // YYYY-MM-DD UTC
+  unfolloweCount   Int       @default(0) @map("unfollow_count")
+  rateLimitHits    Int       @default(0) @map("rate_limit_hits")
+  pausedUntil      DateTime? @map("paused_until")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  account InstagramAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, date])
+  @@index([accountId])
+  @@map("queue_sessions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCOUNT SNAPSHOTS (daily follower/ratio tracking)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AccountSnapshot {
+  id             String   @id @default(uuid())
+  accountId      String   @map("account_id")
+  followersCount Int      @map("followers_count")
+  followingCount Int      @map("following_count")
+  ghostCount     Int      @map("ghost_count")
+  ratio          Float
+  takenAt        DateTime @default(now()) @map("taken_at")
+
+  account InstagramAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, takenAt])
+  @@map("account_snapshots")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CREDIT TRANSACTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CreditTransaction {
+  id                   String          @id @default(uuid())
+  userId               String          @map("user_id")
+  type                 TransactionType
+  creditsAdded         Int?            @map("credits_added")
+  creditsConsumed      Int?            @map("credits_consumed")
+  balanceAfter         Int             @map("balance_after")
+  packType             String?         @map("pack_type")          // starter | standard | power
+  pricePaidCents       Int?            @map("price_paid_cents")
+  stripePaymentIntentId String?        @unique @map("stripe_payment_intent_id")
+  createdAt            DateTime        @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("credit_transactions")
+}
+
+enum TransactionType {
+  PURCHASE
+  CONSUME
+  REFUND
+
+  @@map("transaction_type")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBSCRIPTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String             @map("user_id")
+  stripeSubscriptionId String             @unique @map("stripe_subscription_id")
+  stripePriceId        String             @map("stripe_price_id")
+  tier                 UserTier
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart   DateTime           @map("current_period_start")
+  currentPeriodEnd     DateTime           @map("current_period_end")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+
+  @@map("subscription_status")
+}
