@@ -1307,6 +1307,241 @@ Security audit: clean
 
 ---
 
+### PHASE 11 — Mobile App (React Native + Expo)
+
+**Goal:** Production-ready iOS and Android app with full feature parity to the web dashboard for all P0 and P1 features. Read `MOBILE-ARCHITECTURE.md` before starting this phase.
+
+**Prerequisites:** Phase 10 web release complete. All `/api/v1/` routes verified. OneSignal account set up. EAS project created.
+
+**Build tasks:**
+```
+1. Scaffold apps/mobile/
+   - Initialize Expo managed workflow: npx create-expo-app apps/mobile --template blank-typescript
+   - Install all packages from MOBILE-ARCHITECTURE.md key packages section
+   - Configure app.json (bundleIdentifier, scheme: 'ghoast', splash, plugins)
+   - Configure eas.json (development, preview, production profiles)
+   - Set up Expo Router v3 file-based routing
+
+2. Shared design tokens
+   - Create packages/design-tokens/src/index.ts
+   - Export: colors, tiers, spacing, fontSizes
+   - Verify import works from both apps/web and apps/mobile
+
+3. Auth screens
+   - app/(auth)/login.tsx — email/password form, calls POST /api/v1/auth/login
+   - app/(auth)/register.tsx — name/email/password, calls POST /api/v1/auth/register
+   - lib/auth.ts — SecureStore token storage (getAccessToken, saveTokens, clearTokens)
+   - lib/api.ts — Base API client with X-Platform: mobile header + auto-refresh logic
+   - Root _layout.tsx — auth gate: check SecureStore → redirect to login if no token
+
+4. Instagram connect screen
+   - app/(auth)/connect.tsx — ToS disclosure view + react-native-webview Instagram login
+   - Use realistic iOS Safari user agent (see MOBILE-ARCHITECTURE.md)
+   - On login success: call POST /api/v1/accounts/connect-mobile
+   - Deep link: ghoast://connect → handled by Expo Router
+
+5. Dashboard screen
+   - app/(app)/dashboard.tsx
+   - Stats cards: followers, following, ghost count, ratio
+   - 30-day ratio line chart (react-native-gifted-charts)
+   - Last scanned timestamp
+   - Rescan button → POST /api/v1/accounts/:id/scan
+
+6. Ghost list screen
+   - app/(app)/ghosts/index.tsx
+   - FlatList (NOT ScrollView) — handles 5,000 items with virtualization
+   - GhostRow component: avatar, handle, tier badge, score, Unfollow button
+   - TierFilterTabs — horizontal scroll, filters FlatList data
+   - Search input — filters by handle/display name (client-side on loaded data)
+   - Manual unfollow: POST /api/v1/accounts/:id/ghosts/:id/unfollow
+   - Daily cap counter: "X of 10 remaining" badge
+   - On cap reached: show UpgradePrompt modal with browser link to ghoast.app/billing
+
+7. Queue screen
+   - app/(app)/queue.tsx
+   - Tier selection checkboxes (Tier 5 disabled — "Auto-protected" tooltip)
+   - "Start Queue" button → POST /api/v1/queue/start
+   - Active queue status card: current position, % complete, estimated time
+   - Queue polls GET /api/v1/queue/status/:account_id every 10 seconds (no SSE on mobile)
+   - Queue history: last 30 completed runs
+
+8. Settings screen
+   - app/(app)/settings.tsx
+   - Connected Instagram account display
+   - Notification preferences (toggles stored server-side)
+   - "Manage Billing" → opens browser to ghoast.app/billing (Linking.openURL)
+   - "Delete Account" → confirmation dialog → DELETE /api/v1/users/me
+   - "Sign Out" → clearTokens() + OneSignal.logout() + redirect to login
+
+9. Push notifications
+   - lib/notifications.ts — OneSignal.initialize + login + addTag('user_id')
+   - Permission prompt shown after first successful scan (not on app launch)
+   - Foreground handler: custom in-app banner
+   - Background tap handler: navigate to correct screen using data.screen payload
+   - Settings screen: notification preference toggles
+
+10. Deep linking
+    - Verify apple-app-site-association is served at ghoast.app/.well-known/
+    - Verify assetlinks.json is served at ghoast.app/.well-known/
+    - Test: email link → ghoast://queue opens queue screen
+    - Test: ghoast://connect → opens connect screen
+```
+
+**Tests:**
+```typescript
+describe('Auth token storage', () => {
+  it('saves tokens to SecureStore on login', async () => {});
+  it('clears tokens from SecureStore on logout', async () => {});
+  it('refreshes access token automatically when 401 received', async () => {});
+  it('redirects to login when refresh fails', async () => {});
+  it('never writes tokens to AsyncStorage', async () => {
+    // Spy on AsyncStorage.setItem — should never be called
+    const spy = jest.spyOn(AsyncStorage, 'setItem');
+    await login(testCredentials);
+    expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('API client — X-Platform header', () => {
+  it('always sends X-Platform: mobile header', async () => {
+    const requests: string[] = [];
+    // Intercept fetch and verify header present on every call
+  });
+});
+
+describe('Ghost list FlatList', () => {
+  it('renders 5000 items without crashing', async () => {});
+  it('filters correctly by tier', async () => {});
+  it('Tier 5 unfollow button is disabled', async () => {});
+  it('shows upgrade prompt when daily cap is reached', async () => {});
+});
+
+describe('Queue screen', () => {
+  it('Tier 5 checkbox is disabled', async () => {});
+  it('polls queue status every 10 seconds', async () => {});
+  it('shows correct progress percentage', async () => {});
+});
+
+describe('Deep linking', () => {
+  it('ghoast://queue navigates to queue screen', async () => {});
+  it('ghoast://connect navigates to connect screen', async () => {});
+});
+```
+
+**Git commit:**
+```
+feat(mobile): implement React Native + Expo mobile app
+
+- Expo Router v3 file-based navigation (auth + app tabs)
+- SecureStore token management with auto-refresh
+- Instagram WebView connect with iOS Safari UA
+- Dashboard, ghost list (FlatList, 5k items), queue, settings screens
+- OneSignal push notifications with permission-after-scan flow
+- Deep linking (ghoast:// scheme + Universal Links)
+- Shared design-tokens package consumed by both web and mobile
+- All purchases via ghoast.app/billing — no IAP in native app
+```
+
+---
+
+### PHASE 12 — Store Submission & Release
+
+**Goal:** App live on iOS App Store and Google Play Store. Read `PLATFORM-COMPLIANCE.md` completely before starting this phase.
+
+**Prerequisites:**
+- Apple Developer account ($99/year) active
+- Google Play Developer account ($25 one-time) active
+- All Phase 11 tests green
+- TestFlight/internal track build tested by at least one real device
+- Privacy policy live at `ghoast.app/privacy`
+- Terms of service live at `ghoast.app/terms`
+- Account deletion flow tested end-to-end
+- Test account pre-loaded with ghost data for App Review team
+
+**Build tasks:**
+```
+1. App assets
+   - App icon: 1024×1024 PNG, no alpha, no rounded corners (both stores)
+   - Splash screen: dark background (#080810), Ghoast wordmark centred
+   - Screenshots:
+     iOS: 6.7" (iPhone 15 Pro Max), 6.1" (iPhone 15), 12.9" (iPad — optional)
+     Android: Phone (1080×1920 min), 7" tablet (optional)
+   - Minimum 3 screenshots per size — show: dashboard, ghost list, queue
+
+2. EAS production builds
+   eas build --platform ios --profile production
+   eas build --platform android --profile production
+   — Wait for both builds to complete before submitting —
+
+3. iOS submission
+   - Upload IPA to App Store Connect via eas submit --platform ios
+   - Complete app metadata in App Store Connect:
+     - App name, subtitle, description (see PLATFORM-COMPLIANCE.md)
+     - Keywords (100 chars)
+     - Support URL: ghoast.app/support
+     - Privacy Policy URL: ghoast.app/privacy
+     - Category: Utilities
+     - Age Rating: 4+
+   - Complete Privacy Nutrition Labels (all data types per PLATFORM-COMPLIANCE.md)
+   - Add App Review notes (see template in PLATFORM-COMPLIANCE.md)
+   - Submit for review
+
+4. Android submission
+   - Upload AAB to Google Play Console via eas submit --platform android
+   - Start on Internal Testing track
+   - Complete store listing:
+     - Short description (80 chars), full description
+     - Screenshots (phone required)
+     - Feature graphic (1024×500)
+   - Complete Data Safety section (all fields per PLATFORM-COMPLIANCE.md)
+   - Complete Content Rating questionnaire
+   - Promote to: Internal → Closed testing → Open testing → Production (staged rollout 10%)
+
+5. Post-submission monitoring
+   - Monitor App Store Connect for review status — check daily
+   - If rejected: read the rejection reason fully, address it, resubmit
+   - Once both stores approved: announce on social, update landing page with store badges
+   - Add store download links to ghoast.app (App Store badge, Google Play badge)
+
+6. OTA update infrastructure
+   - Verify eas update --branch production deploys without native rebuild
+   - Test OTA update cycle: deploy a text change, verify it reaches device within 5 min
+   - Document OTA update runbook in BUILD-LOG.md
+
+7. Release tag
+   git tag -a v1.1.0 -m "Ghoast v1.1.0 — iOS + Android release"
+   git push origin v1.1.0
+```
+
+**Pre-submission checklist (run before every store submission):**
+```
+✓ app.json version number incremented
+✓ eas.json production profile verified
+✓ All tests pass (npm test, Expo Go smoke test on physical device)
+✓ No EXPO_PUBLIC_ variables contain secrets
+✓ Deep links tested on physical iOS + Android device
+✓ Account deletion tested end-to-end
+✓ Push notifications tested (queue complete, session expired)
+✓ "Upgrade" button opens browser to ghoast.app/billing (no in-app purchase)
+✓ No pricing displayed inside the native app
+✓ Instagram connect ToS disclosure shown before WebView
+✓ Staging build tested on TestFlight + Play internal track
+```
+
+**Git commit:**
+```
+release: tag v1.1.0 — iOS App Store + Google Play release
+
+- EAS production builds for iOS (IPA) and Android (AAB)
+- App Store Connect listing complete (Utilities, 4+, Privacy Labels)
+- Google Play Console listing complete (Data Safety, Content Rating)
+- OTA update infrastructure verified
+- Store badges added to landing page
+- App review test account documented in PLATFORM-COMPLIANCE.md
+```
+
+---
+
 ## SECTION 7 — ITERATION RULES
 
 ### When a Test Fails
@@ -1354,22 +1589,35 @@ STOP all queue processing immediately for the affected account
 5. Verify all test DB tables are correct
 ```
 
+### When an App Store Build is Rejected
+```
+1. Read the full rejection reason in App Store Connect / Play Console
+2. Identify the specific guideline violated
+3. Address the exact issue — do not make unrelated changes
+4. If the issue is ambiguous: respond to Apple/Google review team with clarification
+5. Resubmit with updated App Review notes documenting what was changed
+6. Update PLATFORM-COMPLIANCE.md with the rejection reason and resolution
+```
+
 ### What Never to Do
 - `git commit --no-verify` (bypasses hooks)
 - Commenting out failing tests
 - Adding `.skip` to a test without a comment and a linked issue
 - Deleting a test instead of fixing it
 - Committing with `process.env.NODE_ENV === 'test' && return;` to bypass logic in production
+- Using AsyncStorage for JWT tokens (use SecureStore only)
+- Adding in-app purchase UI without a separate architecture review
 
 ---
 
 ## SECTION 8 — DEFINITION OF DONE
 
-The build is complete and v1.0.0 is ready when ALL of the following are true:
+The build is complete and v1.1.0 is ready when ALL of the following are true:
 
 ### Code
 - [ ] All P0 features (F001–F006, F012) built and meeting acceptance criteria in REQUIREMENTS.md
-- [ ] All P1 features (F007–F010, landing page) built and meeting acceptance criteria
+- [ ] All P1 features (F007–F010, F013, landing page) built and meeting acceptance criteria
+- [ ] Mobile app (Phase 11) built and all mobile tests green
 - [ ] No TypeScript compilation errors (`npm run typecheck` exits 0)
 - [ ] No linting errors (`npm run lint` exits 0)
 - [ ] No `console.log` in production code (only `logger.*`)
@@ -1380,6 +1628,8 @@ The build is complete and v1.0.0 is ready when ALL of the following are true:
 - [ ] Unit test coverage ≥ 80% on all service files
 - [ ] Every API route has integration test (happy path + at least one error path)
 - [ ] Full E2E test suite passes (Playwright)
+- [ ] Mobile: SecureStore token storage tests pass
+- [ ] Mobile: AsyncStorage is never called with sensitive data (spy test)
 - [ ] Load test: 50 concurrent queues, no deadlocks, no credit double-deductions
 
 ### Security
@@ -1388,17 +1638,29 @@ The build is complete and v1.0.0 is ready when ALL of the following are true:
 - [ ] All Stripe webhooks verify signature
 - [ ] Tier 5 hard block confirmed via API-level test (not just UI)
 - [ ] JWT tamper rejection confirmed
+- [ ] No secrets in `EXPO_PUBLIC_*` mobile env variables
 
 ### Git
-- [ ] BUILD-LOG.md has an entry for every phase (Phase 0–10)
+- [ ] BUILD-LOG.md has an entry for every phase (Phase 0–12)
 - [ ] Commit history is clean and meaningful (no "fix", "wip", "test" messages on main)
-- [ ] `.env.example` is up to date with all required variables
+- [ ] `.env.example` is up to date with all required variables (including ONESIGNAL)
 - [ ] `.gitignore` excludes: `.env`, `node_modules`, `dist`, `.next`, `coverage`
-- [ ] `v1.0.0` tag exists on `main`
+- [ ] `v1.1.0` tag exists on `main`
+
+### Store Compliance
+- [ ] Privacy policy live at `ghoast.app/privacy`
+- [ ] Terms of service live at `ghoast.app/terms`
+- [ ] Account deletion flow implemented and tested
+- [ ] Apple Privacy Nutrition Labels completed
+- [ ] Google Data Safety section completed
+- [ ] App live on iOS App Store (or TestFlight for initial release)
+- [ ] App live on Google Play (Internal or Open Testing track minimum)
 
 ### Documentation
 - [ ] CLAUDE.md, REQUIREMENTS.md, TECH-STACK.md, DESIGN-NOTES.md are all current
-- [ ] BUILD-LOG.md is complete through Phase 10
+- [ ] MOBILE-ARCHITECTURE.md is current
+- [ ] PLATFORM-COMPLIANCE.md is current
+- [ ] BUILD-LOG.md is complete through Phase 12
 - [ ] README.md exists with: project description, setup instructions, environment variables, how to run
 
 ---
@@ -1432,7 +1694,7 @@ Updated after every phase. Never edited retroactively.
 - None
 
 ---
-[Append Phase 1, 2, ... 10 entries here]
+[Append Phase 1, 2, ... 12 entries here]
 ```
 
 ---
@@ -1480,6 +1742,10 @@ POSTHOG_HOST=https://app.posthog.com
 
 # ── Monitoring ────────────────────────────────────
 SENTRY_DSN=https://...@sentry.io/...
+
+# ── Push Notifications ────────────────────────────
+ONESIGNAL_APP_ID=
+ONESIGNAL_API_KEY=
 ```
 
 ---
@@ -1496,7 +1762,6 @@ Every app must expose these in `package.json`:
     "start": "...",
     "test": "jest --runInBand",
     "test:unit": "jest --testPathPattern=\\.test\\.ts$ --runInBand",
-    "test:integration": "jest --testPathPattern=\\.integration\\.test\\.ts$ --runInBand",
     "test:e2e": "playwright test",
     "test:coverage": "jest --coverage --runInBand",
     "test:watch": "jest --watch",
@@ -1515,6 +1780,6 @@ Every app must expose these in `package.json`:
 
 ---
 
-*End of MASTER BUILD PROMPT — Ghoast v1.0*
+*End of MASTER BUILD PROMPT — Ghoast v1.1*
 
-*Reference documents: CLAUDE.md · REQUIREMENTS.md · TECH-STACK.md · DESIGN-NOTES.md · GHOAST-PRD.md*
+*Reference documents: CLAUDE.md · REQUIREMENTS.md · TECH-STACK.md · DESIGN-NOTES.md · GHOAST-PRD.md · MOBILE-ARCHITECTURE.md · PLATFORM-COMPLIANCE.md*
