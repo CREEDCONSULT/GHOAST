@@ -6,10 +6,11 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import { logger } from './lib/logger.js';
 import { redis } from './lib/redis.js';
 import { prisma } from '@ghoast/db';
+import { authRoutes } from './routes/auth.js';
 
 export async function buildServer() {
   const app = Fastify({
-    loggerInstance: logger,
+    logger,
     disableRequestLogging: false,
     trustProxy: true,
   });
@@ -46,7 +47,7 @@ export async function buildServer() {
   // ── Routes ─────────────────────────────────────────────────────────────────
   // All routes versioned under /api/v1/ — required for mobile compatibility
   await app.register(async (v1) => {
-    // Auth routes registered in Phase 1
+    await v1.register(authRoutes, { prefix: '/auth' });
     // Account routes registered in Phase 2
     // Scan routes registered in Phase 3
     // Queue routes registered in Phase 6
@@ -62,21 +63,4 @@ export async function buildServer() {
   });
 
   return app;
-}
-
-// Start server if this is the entry point
-const isDirect =
-  process.argv[1] != null && new URL(import.meta.url).pathname.endsWith('server.ts');
-
-if (isDirect) {
-  const app = await buildServer();
-  const port = parseInt(process.env.PORT ?? '3001', 10);
-
-  try {
-    await app.listen({ port, host: '0.0.0.0' });
-    logger.info({ port }, 'API server started');
-  } catch (err) {
-    logger.error(err, 'Failed to start server');
-    process.exit(1);
-  }
 }
