@@ -331,6 +331,52 @@ These are non-negotiable — must be implemented before launch:
 
 ---
 
+### F013 — Push Notifications (Mobile)
+**Priority:** P1 | **Tiers:** All (with account) | **Platform:** iOS + Android
+
+Push notifications are the mobile equivalent of SSE queue status events. Because iOS and Android kill background network connections, server-sent events cannot reach users when the app is closed or backgrounded. Push notifications fill this gap.
+
+**Provider:** OneSignal (unified FCM for Android + APNs for iOS)
+
+**Notification Events — Required:**
+
+| Event | Trigger | Title | Body |
+|-------|---------|-------|------|
+| Queue complete | All queued unfollows processed | "Queue complete" | "Ghosted X accounts. Your ratio is now Y." |
+| Queue paused — rate limit | Instagram rate-limit response received | "Queue paused" | "Instagram slowed us down. Resuming in 15 minutes." |
+| Queue paused — 24h | 3 rate-limits in one day | "Queue paused for 24h" | "To protect your account, the queue pauses after 3 rate limits. Resumes tomorrow." |
+| Session expired | Instagram session token becomes invalid | "Reconnect Instagram" | "Your session expired. Tap to reconnect and resume." |
+| Queue resumed | Worker resumes after a rate-limit pause | "Queue resumed" | "Back at it. X unfollows remaining today." |
+| Daily cap reached | Daily unfollow cap hit (150/day) | "Daily limit reached" | "150 accounts ghosted today. Queue resumes at midnight UTC." |
+| Ratio milestone | Ratio improves past a whole number (e.g. 0.9 → 1.0) | "Ratio milestone" | "Your ratio just hit X.X. Keep going." |
+| Scan complete | Ghost scan finishes | "Scan complete" | "Found X ghosts. Open the app to review." |
+
+**Functional Requirements:**
+
+- Push token is registered with OneSignal immediately after Ghoast account login on mobile
+- Push token is tagged with `user_id` for server-side targeting
+- Permission prompt shown after first successful ghost scan — not on app launch
+- All notification events are sent server-side via OneSignal REST API — never client-side
+- Notifications include `data.screen` payload for deep-link routing: `queue`, `dashboard`, `connect`
+- Tapping a notification navigates to the relevant screen inside the app
+- Users can disable individual notification types in Settings → Notifications
+- Notification preferences stored server-side (not just locally) — persist across reinstalls
+- All push sends are logged with: `user_id`, `event_type`, `sent_at`, `onesignal_notification_id`
+- Failed push deliveries (invalid token) trigger token cleanup — do NOT retry infinitely
+
+**Non-events (never send push for):**
+- Marketing / upsell prompts (no push ads)
+- Periodic reminders ("You have X ghosts remaining") — not in V1
+- Daily summary digests — not in V1
+
+**Environment Variables Required:**
+```
+ONESIGNAL_APP_ID=       # Shared with mobile app (EXPO_PUBLIC_ONESIGNAL_APP_ID)
+ONESIGNAL_API_KEY=      # Server-side only — never expose to mobile client
+```
+
+---
+
 ## Phase Delivery Schedule
 
 | Feature | Phase 1 MVP (Wk 1-4) | Phase 2 V1.1 (Wk 5-8) | Phase 3 V2 (Mo 3-6) |
@@ -346,7 +392,7 @@ These are non-negotiable — must be implemented before launch:
 | F008 CSV Export | | ✓ | |
 | F009 Multi-Account (Pro+) | | ✓ | |
 | F010 Whitelist (Pro+) | | ✓ | |
+| F013 Push Notifications | | ✓ (mobile launch) | |
 | F011 Ghost Follower Detector | | | ✓ |
-| Push notifications | | | ✓ |
 | Annual pricing | | | ✓ |
 | Referral programme | | | ✓ |
