@@ -10,6 +10,7 @@ import { authRoutes } from './routes/auth.js';
 import { accountRoutes } from './routes/accounts.js';
 import { scanRoutes } from './routes/scan.js';
 import { ghostRoutes } from './routes/ghosts.js';
+import { billingRoutes, stripeWebhookRoute } from './routes/billing.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -54,8 +55,9 @@ export async function buildServer() {
     await v1.register(accountRoutes, { prefix: '/accounts' });
     await v1.register(scanRoutes, { prefix: '/accounts' });
     await v1.register(ghostRoutes, { prefix: '/accounts' });
+    await v1.register(billingRoutes, { prefix: '/billing' });
+    await v1.register(stripeWebhookRoute);
     // Queue routes registered in Phase 6
-    // Billing routes registered in Phase 5
     v1.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
   }, { prefix: '/api/v1' });
 
