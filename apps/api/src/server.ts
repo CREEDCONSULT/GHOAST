@@ -7,6 +7,7 @@ import { logger } from './lib/logger.js';
 import { redis } from './lib/redis.js';
 import { prisma } from '@ghoast/db';
 import { authRoutes } from './routes/auth.js';
+import { accountRoutes } from './routes/accounts.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -48,7 +49,7 @@ export async function buildServer() {
   // All routes versioned under /api/v1/ — required for mobile compatibility
   await app.register(async (v1) => {
     await v1.register(authRoutes, { prefix: '/auth' });
-    // Account routes registered in Phase 2
+    await v1.register(accountRoutes, { prefix: '/accounts' });
     // Scan routes registered in Phase 3
     // Queue routes registered in Phase 6
     // Billing routes registered in Phase 5
