@@ -8,6 +8,7 @@ import { redis } from './lib/redis.js';
 import { prisma } from '@ghoast/db';
 import { authRoutes } from './routes/auth.js';
 import { accountRoutes } from './routes/accounts.js';
+import { scanRoutes } from './routes/scan.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -50,7 +51,7 @@ export async function buildServer() {
   await app.register(async (v1) => {
     await v1.register(authRoutes, { prefix: '/auth' });
     await v1.register(accountRoutes, { prefix: '/accounts' });
-    // Scan routes registered in Phase 3
+    await v1.register(scanRoutes, { prefix: '/accounts' });
     // Queue routes registered in Phase 6
     // Billing routes registered in Phase 5
     v1.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
