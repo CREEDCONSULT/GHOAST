@@ -9,6 +9,7 @@ import { prisma } from '@ghoast/db';
 import { authRoutes } from './routes/auth.js';
 import { accountRoutes } from './routes/accounts.js';
 import { scanRoutes } from './routes/scan.js';
+import { ghostRoutes } from './routes/ghosts.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -52,6 +53,7 @@ export async function buildServer() {
     await v1.register(authRoutes, { prefix: '/auth' });
     await v1.register(accountRoutes, { prefix: '/accounts' });
     await v1.register(scanRoutes, { prefix: '/accounts' });
+    await v1.register(ghostRoutes, { prefix: '/accounts' });
     // Queue routes registered in Phase 6
     // Billing routes registered in Phase 5
     v1.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
