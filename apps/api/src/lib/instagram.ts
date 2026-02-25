@@ -325,6 +325,33 @@ export async function getFollowers(
 }
 
 /**
+ * Sends an unfollow request for the given target Instagram user ID.
+ * Used by the manual unfollow flow and the queue worker.
+ *
+ * SECURITY: never pass sessionToken to logger calls.
+ */
+export async function unfollowUser(
+  ownerInstagramUserId: string,
+  targetInstagramUserId: string,
+  sessionToken: string,
+): Promise<void> {
+  try {
+    const response = await fetchWithTimeout(
+      `${INSTAGRAM_API_BASE}/friendships/destroy/${targetInstagramUserId}/`,
+      {
+        ...buildHeaders(sessionToken),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    );
+
+    if (!response.ok) handleErrorResponse(response);
+    logger.info({ ownerInstagramUserId, targetInstagramUserId }, 'Unfollow request sent');
+  } catch (err) {
+    wrapNetworkError(err);
+  }
+}
+
+/**
  * Fetches detailed account info for a specific Instagram user ID.
  * Used to get scoring dimensions (followerCount, followingCount, lastPostDate, etc.)
  *
