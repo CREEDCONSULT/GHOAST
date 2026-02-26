@@ -41,6 +41,8 @@ export interface UnfollowJobData {
 export interface UnfollowJobResult {
   success: boolean;
   ghostId: string;
+  /** True when the ghost was silently skipped due to whitelist — no credit consumed */
+  skipped?: boolean;
 }
 
 // ── Redis keys ────────────────────────────────────────────────────────────────
@@ -112,10 +114,10 @@ async function processUnfollowJob(
     throw new Error(`Account ${accountId} not found for user ${userId}`);
   }
 
-  // 2. Fetch ghost — TIER 5 HARD BLOCK (belt-and-suspenders)
+  // 2. Fetch ghost — TIER 5 HARD BLOCK + WHITELIST CHECK (belt-and-suspenders)
   const ghost = await prisma.ghost.findFirst({
     where: { id: ghostId, accountId },
-    select: { instagramUserId: true, tier: true, removedAt: true },
+    select: { instagramUserId: true, tier: true, removedAt: true, isWhitelisted: true },
   });
 
   if (!ghost) {
@@ -123,6 +125,11 @@ async function processUnfollowJob(
   }
   if (ghost.tier === 5) {
     throw new Error(`TIER5_BLOCK: Ghost ${ghostId} is Tier 5 — unfollow blocked`);
+  }
+  if (ghost.isWhitelisted) {
+    // Whitelisted — silently skip, no credit consumed
+    logger.info({ accountId, ghostId }, 'Ghost is whitelisted — skipping unfollow');
+    return { success: true, ghostId, skipped: true };
   }
   if (ghost.removedAt) {
     // Already removed — silently succeed (idempotent)

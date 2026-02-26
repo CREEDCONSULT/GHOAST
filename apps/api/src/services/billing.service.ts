@@ -19,6 +19,7 @@ import Stripe from 'stripe';
 import { prisma } from '@ghoast/db';
 import type { UserTier } from '@ghoast/db';
 import { logger } from '../lib/logger.js';
+import { handleTierDowngrade } from './accounts.service.js';
 
 // ── Stripe client (lazy-initialized so tests that don't need Stripe can still
 //    import server.ts without STRIPE_SECRET_KEY being set) ────────────────────
@@ -308,6 +309,9 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
     }),
   ]);
 
+  // Flag excess accounts for grace-period disconnect (7 days)
+  await handleTierDowngrade(userId, 'FREE');
+
   logger.info({ userId, subscriptionId: subscription.id }, 'Subscription cancelled — user downgraded to Free');
 }
 
@@ -330,6 +334,9 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
       },
     }),
   ]);
+
+  // If tier was downgraded, flag excess accounts for grace-period disconnect (7 days)
+  await handleTierDowngrade(userId, tier);
 
   logger.info({ userId, tier, subscriptionId: subscription.id }, 'Subscription updated');
 }

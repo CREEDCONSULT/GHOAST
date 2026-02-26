@@ -60,6 +60,14 @@ jest.mock('../../src/services/accounts.service.js', () => {
       this.handle = handle;
     }
   }
+  class AccountLimitReachedError extends Error {
+    readonly limit: number;
+    constructor(limit: number) {
+      super(`Your plan supports a maximum of ${limit} connected Instagram account${limit === 1 ? '' : 's'}.`);
+      this.name = 'AccountLimitReachedError';
+      this.limit = limit;
+    }
+  }
   class SessionExpiredError extends Error {
     constructor() {
       super('Instagram session has expired. Please reconnect your account.');
@@ -78,6 +86,7 @@ jest.mock('../../src/services/accounts.service.js', () => {
     listAccounts: jest.fn(),
     AccountNotFoundError,
     AccountAlreadyConnectedError,
+    AccountLimitReachedError,
     SessionExpiredError,
     InstagramRateLimitError,
   };
@@ -111,6 +120,7 @@ import {
   listAccounts,
   AccountNotFoundError,
   AccountAlreadyConnectedError,
+  AccountLimitReachedError,
 } from '../../src/services/accounts.service.js';
 // Use the REAL error classes from instagram.ts (not mocked) so that
 // instanceof checks in the route handler work correctly
@@ -292,6 +302,22 @@ describe('Account routes — /api/v1/accounts', () => {
       });
 
       expect(res.statusCode).toBe(409);
+    });
+
+    it('returns 403 when account limit reached for current tier', async () => {
+      (connectAccount as jest.Mock).mockRejectedValue(new AccountLimitReachedError(1));
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/accounts/connect',
+        headers: authHeaders,
+        payload: { sessionToken: VALID_TOKEN },
+      });
+
+      expect(res.statusCode).toBe(403);
+      const body = res.json<{ limit: number; upgrade_required: boolean }>();
+      expect(body.limit).toBe(1);
+      expect(body.upgrade_required).toBe(true);
     });
 
     it('returns 500 on unexpected service error', async () => {
