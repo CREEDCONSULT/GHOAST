@@ -37,6 +37,7 @@ export const QUEUE_CONFIG = {
   QUEUE_NAME_UNFOLLOW: 'unfollow',
   QUEUE_NAME_SCAN: 'scan',
   QUEUE_NAME_SNAPSHOT: 'snapshot',
+  QUEUE_NAME_DISCONNECT: 'disconnect',
 } as const;
 
 /**

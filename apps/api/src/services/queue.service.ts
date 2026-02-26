@@ -120,7 +120,7 @@ export async function startQueue(
   // 3. Validate ghosts exist, belong to account, and check Tier 5
   const ghosts = await prisma.ghost.findMany({
     where: { id: { in: ghostIds }, accountId, removedAt: null },
-    select: { id: true, tier: true },
+    select: { id: true, tier: true, isWhitelisted: true },
   });
 
   const foundIds = new Set(ghosts.map((g) => g.id));
@@ -129,16 +129,20 @@ export async function startQueue(
     throw new QueueAccountNotFoundError();
   }
 
-  const tier5Ghosts = ghosts.filter((g) => g.tier === 5);
+  // Filter out whitelisted ghosts silently — they are never enqueued
+  const queueableGhosts = ghosts.filter((g) => !g.isWhitelisted);
+  const queueableIds = queueableGhosts.map((g) => g.id);
+
+  const tier5Ghosts = queueableGhosts.filter((g) => g.tier === 5);
   if (tier5Ghosts.length > 0) throw new QueueTier5RejectedError();
 
-  // 4. Daily cap check
+  // 4. Daily cap check (against queueable ghosts only, not whitelisted)
   const dailyCap = hasPro ? QUEUE_CONFIG.DAILY_CAP_PRO : user.creditBalance;
   const capKey = `daily_unfollow:${accountId}:${new Date().toISOString().slice(0, 10)}`;
   const currentCount = parseInt((await redis.get(capKey)) ?? '0', 10);
   const remaining = dailyCap - currentCount;
 
-  if (ghostIds.length > remaining) throw new QueueDailyCapExceededError();
+  if (queueableIds.length > remaining) throw new QueueDailyCapExceededError();
 
   // 5. Create queue_session record
   const today = new Date().toISOString().slice(0, 10);
@@ -148,9 +152,9 @@ export async function startQueue(
     update: {},
   });
 
-  // 6. Enqueue jobs
+  // 6. Enqueue jobs (whitelisted ghosts already filtered out above)
   const queue = getUnfollowQueue();
-  const jobs = ghostIds.map((ghostId, index) => ({
+  const jobs = queueableIds.map((ghostId, index) => ({
     name: 'unfollow',
     data: {
       accountId,
@@ -173,20 +177,20 @@ export async function startQueue(
     const { createUnfollowWorker } = await import('../workers/unfollow.worker.js');
     const worker = createUnfollowWorker();
     activeWorkers.set(accountId, worker);
-    logger.info({ accountId, jobCount: ghostIds.length }, 'Unfollow worker started');
+    logger.info({ accountId, jobCount: queueableIds.length }, 'Unfollow worker started');
   }
 
   // Estimate completion: avg delay per job
   const avgDelayMs =
     (QUEUE_CONFIG.UNFOLLOW_DELAY_MIN_MS + QUEUE_CONFIG.UNFOLLOW_DELAY_MAX_MS) / 2;
-  const estimatedMs = ghostIds.length * avgDelayMs;
+  const estimatedMs = queueableIds.length * avgDelayMs;
   const estimatedCompletionMinutes = Math.ceil(estimatedMs / 60_000);
 
-  logger.info({ accountId, userId, jobCount: ghostIds.length }, 'Queue started');
+  logger.info({ accountId, userId, jobCount: queueableIds.length }, 'Queue started');
 
   return {
     sessionId: session.id,
-    jobCount: ghostIds.length,
+    jobCount: queueableIds.length,
     estimatedCompletionMinutes,
   };
 }

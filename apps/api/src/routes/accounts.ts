@@ -17,6 +17,7 @@ import {
   listAccounts,
   AccountNotFoundError,
   AccountAlreadyConnectedError,
+  AccountLimitReachedError,
 } from '../services/accounts.service.js';
 import { SessionExpiredError, InstagramRateLimitError } from '../lib/instagram.js';
 import { requireAuth } from '../middleware/requireAuth.js';
@@ -80,6 +81,17 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
             statusCode: 409,
             error: 'Conflict',
             message: err.message,
+          });
+        }
+
+        if (err instanceof AccountLimitReachedError) {
+          return reply.status(403).send({
+            statusCode: 403,
+            error: 'Forbidden',
+            message: err.message,
+            limit: err.limit,
+            upgrade_required: true,
+            upgrade_url: '/pricing',
           });
         }
 

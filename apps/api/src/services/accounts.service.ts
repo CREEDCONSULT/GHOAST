@@ -16,6 +16,14 @@ import type { InstagramUserInfo } from '../lib/instagram.js';
 
 export { SessionExpiredError, InstagramRateLimitError } from '../lib/instagram.js';
 
+// ── Account limits by tier ────────────────────────────────────────────────────
+
+const ACCOUNT_LIMITS: Record<string, number> = {
+  FREE: 1,
+  PRO: 1,
+  PRO_PLUS: 3,
+};
+
 // ── Error types ───────────────────────────────────────────────────────────────
 
 export class AccountNotFoundError extends Error {
@@ -31,6 +39,17 @@ export class AccountAlreadyConnectedError extends Error {
     super(`@${handle} is already connected to your Ghoast account.`);
     this.name = 'AccountAlreadyConnectedError';
     this.handle = handle;
+  }
+}
+
+export class AccountLimitReachedError extends Error {
+  readonly limit: number;
+  constructor(limit: number) {
+    super(
+      `Your plan supports a maximum of ${limit} connected Instagram account${limit === 1 ? '' : 's'}. Disconnect an existing account or upgrade to Pro+.`,
+    );
+    this.name = 'AccountLimitReachedError';
+    this.limit = limit;
   }
 }
 
@@ -80,6 +99,28 @@ export async function connectAccount(
   // Step 1: Validate token with Instagram API and get user info
   // SECURITY: sessionToken is never passed to logger
   const userInfo: InstagramUserInfo = await fetchInstagramUserInfo(sessionToken);
+
+  // Step 1.5: Enforce per-tier account limit (skip for reconnections)
+  const existingAccount = await prisma.instagramAccount.findUnique({
+    where: {
+      userId_instagramUserId: {
+        userId,
+        instagramUserId: userInfo.instagramUserId,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!existingAccount) {
+    // New account — check limit
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { tier: true },
+    });
+    const limit = ACCOUNT_LIMITS[user?.tier ?? 'FREE'] ?? 1;
+    const count = await prisma.instagramAccount.count({ where: { userId } });
+    if (count >= limit) throw new AccountLimitReachedError(limit);
+  }
 
   // Step 2: Encrypt session token before storage
   const { encrypted, iv } = encrypt(sessionToken);
@@ -166,4 +207,85 @@ export async function listAccounts(userId: string): Promise<SafeAccount[]> {
     select: safeAccountSelect,
     orderBy: { createdAt: 'asc' },
   });
+}
+
+// ── Tier downgrade enforcement ────────────────────────────────────────────────
+
+/**
+ * Called after a user's tier is downgraded (subscription cancelled or changed).
+ * Flags excess accounts with a 7-day grace period — they will be auto-deleted
+ * by the disconnect cron job at 01:00 UTC once the grace period expires.
+ *
+ * Account selection: oldest accounts are kept (ordered by createdAt asc),
+ * newest excess accounts receive the pendingDisconnect flag.
+ */
+export async function handleTierDowngrade(userId: string, newTier: string): Promise<void> {
+  const limit = ACCOUNT_LIMITS[newTier] ?? 1;
+
+  const accounts = await prisma.instagramAccount.findMany({
+    where: { userId },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (accounts.length <= limit) return; // Within new limit — no action needed
+
+  const excessAccounts = accounts.slice(limit);
+  const disconnectAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  await prisma.instagramAccount.updateMany({
+    where: { id: { in: excessAccounts.map((a) => a.id) } },
+    data: { pendingDisconnect: true, disconnectAt },
+  });
+
+  logger.info(
+    { userId, newTier, excessCount: excessAccounts.length, disconnectAt },
+    'Excess accounts flagged for disconnect after tier downgrade — 7-day grace period started',
+  );
+}
+
+/**
+ * Deletes all Instagram accounts whose grace period has expired
+ * (pendingDisconnect=true and disconnectAt <= now).
+ * Called by the daily disconnect cron at 01:00 UTC.
+ */
+export async function disconnectExpiredAccounts(): Promise<{
+  succeeded: number;
+  failed: number;
+  total: number;
+}> {
+  const expiredAccounts = await prisma.instagramAccount.findMany({
+    where: {
+      pendingDisconnect: true,
+      disconnectAt: { lte: new Date() },
+    },
+    select: { id: true, userId: true, handle: true },
+  });
+
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const account of expiredAccounts) {
+    try {
+      // Mark pending queue jobs as SKIPPED before deletion
+      await prisma.unfollowQueueJob.updateMany({
+        where: { accountId: account.id, status: 'PENDING' },
+        data: { status: 'SKIPPED' },
+      });
+
+      // Delete account — cascades to ghosts, queue jobs, sessions, snapshots
+      await prisma.instagramAccount.delete({ where: { id: account.id } });
+
+      logger.info(
+        { accountId: account.id, userId: account.userId, handle: account.handle },
+        'Expired account disconnected by cron',
+      );
+      succeeded++;
+    } catch (err) {
+      logger.error({ accountId: account.id, err }, 'Failed to disconnect expired account');
+      failed++;
+    }
+  }
+
+  return { succeeded, failed, total: expiredAccounts.length };
 }

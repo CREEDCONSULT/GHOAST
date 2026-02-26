@@ -13,6 +13,7 @@ import { ghostRoutes } from './routes/ghosts.js';
 import { billingRoutes, stripeWebhookRoute } from './routes/billing.js';
 import { queueRoutes } from './routes/queue.js';
 import { snapshotRoutes } from './routes/snapshots.js';
+import { whitelistRoutes } from './routes/whitelist.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -61,6 +62,7 @@ export async function buildServer() {
     await v1.register(stripeWebhookRoute);
     await v1.register(queueRoutes, { prefix: '/queue' });
     await v1.register(snapshotRoutes, { prefix: '/accounts' });
+    await v1.register(whitelistRoutes, { prefix: '/accounts' });
     v1.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
   }, { prefix: '/api/v1' });
 
