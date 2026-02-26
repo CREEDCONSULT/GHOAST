@@ -1,0 +1,112 @@
+# Artillery load test — Ghoast unfollow queue
+#
+# Tests 50 concurrent queue workers processing simultaneously.
+# Target: p95 job processing time < 50s (including max delay).
+#
+# Prerequisites:
+#   npm install -g artillery
+#   export API_URL=http://localhost:4000
+#   export AUTH_TOKEN=<valid-JWT>
+#
+# Run:
+#   artillery run load-tests/queue-load.yml --output load-tests/results.json
+#   artillery report load-tests/results.json
+
+config:
+  target: "{{ $env.API_URL | default: 'http://localhost:4000' }}"
+  http:
+    timeout: 60
+    pool: 50
+  phases:
+    # Warm-up: 5 RPS for 10 seconds
+    - name: "warm-up"
+      duration: 10
+      arrivalRate: 5
+
+    # Ramp-up: 5 → 50 over 30 seconds
+    - name: "ramp-up"
+      duration: 30
+      arrivalRate: 5
+      rampTo: 50
+
+    # Sustained: 50 concurrent users for 60 seconds
+    - name: "sustained-load"
+      duration: 60
+      arrivalRate: 50
+
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer {{ $env.AUTH_TOKEN }}"
+
+  plugins:
+    metrics-by-endpoint: {}
+
+  ensure:
+    # p95 response time under 50 seconds
+    thresholds:
+      - http.response_time.p95: 50000
+    # Error rate under 1%
+    conditions:
+      - expression: "(counters['http.codes.500'] || 0) < (counters['http.requests'] * 0.01)"
+        strict: true
+
+scenarios:
+  # ── Auth health check ───────────────────────────────────────────────────────
+  - name: "Auth health"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+
+  # ── Ghost list fetch (read-heavy load) ─────────────────────────────────────
+  - name: "Fetch ghost list"
+    weight: 40
+    flow:
+      - get:
+          url: "/api/v1/accounts/{{ accountId }}/ghosts"
+          qs:
+            page: 1
+            limit: 50
+          capture:
+            - json: "$.ghosts[0].id"
+              as: "ghostId"
+          expect:
+            - statusCode: 200
+
+  # ── Queue start (write-heavy load) ─────────────────────────────────────────
+  - name: "Start unfollow queue"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/v1/accounts/{{ accountId }}/queue/start"
+          json:
+            ghostIds:
+              - "{{ ghostId1 }}"
+              - "{{ ghostId2 }}"
+              - "{{ ghostId3 }}"
+          expect:
+            - statusCode:
+                - 200
+                - 400  # Daily cap exceeded is acceptable under load
+                - 409  # Queue already running
+
+  # ── Queue status (polling simulation) ──────────────────────────────────────
+  - name: "Poll queue status"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/v1/accounts/{{ accountId }}/queue/status"
+          expect:
+            - statusCode:
+                - 200
+                - 404  # No active queue is acceptable
+
+variables:
+  # Override with real account/ghost IDs in production load test
+  accountId: "load-test-account-id"
+  ghostId1: "load-test-ghost-1"
+  ghostId2: "load-test-ghost-2"
+  ghostId3: "load-test-ghost-3"
