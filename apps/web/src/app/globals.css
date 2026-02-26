@@ -1,26 +1,131 @@
 @import "tailwindcss";
 
+/* ── Ghoast Design System ───────────────────────────────────────────────────
+   All colors are CSS custom properties. Never hardcode hex values in
+   component styles — always use these variables.
+   ─────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Base surfaces */
+  --black:   #080810;
+  --slate:   #111120;
+  --slate2:  #181830;
+  --specter: #1A1A3A;
+
+  /* Brand accents */
+  --violet:     #7B4FFF;
+  --violet-lo:  rgba(123,79,255,.14);
+  --violet-mid: rgba(123,79,255,.35);
+  --cyan:       #00E5FF;
+  --cyan-lo:    rgba(0,229,255,.1);
+
+  /* Semantic colors */
+  --red:   #FF3E3E;
+  --green: #00E676;
+
+  /* Tier colors — must not change */
+  --tier-1: #FF3E3E;
+  --tier-2: #FF7A3E;
+  --tier-3: #FFD166;
+  --tier-4: #7B4FFF;
+  --tier-5: #00E676;
+
+  /* Text */
+  --ghost-text: #E8E8FF;
+  --muted: #7070A0;
+
+  /* Gradients */
+  --grad:      linear-gradient(135deg, #7B4FFF 0%, #00E5FF 100%);
+  --grad-r:    linear-gradient(135deg, #00E5FF 0%, #7B4FFF 100%);
+  --grad-soft: linear-gradient(135deg, rgba(123,79,255,.25) 0%, rgba(0,229,255,.25) 100%);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ── Base ───────────────────────────────────────────────────────────────────── */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--black);
+  color: var(--ghost-text);
+  font-family: 'Outfit', sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ── Noise + orb background layers ─────────────────────────────────────────── */
+
+.noise-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+.orb { position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0; }
+.orb-1 { width: 500px; height: 500px; background: rgba(123,79,255,.1);  top: -150px;  right: -80px; }
+.orb-2 { width: 350px; height: 350px; background: rgba(0,229,255,.06);  bottom: -80px; left: -100px; }
+.orb-3 { width: 200px; height: 200px; background: rgba(123,79,255,.08); top: 40%;     left: 30%; }
+
+/* All visible content must sit above background layers */
+main, nav, header, section, footer, .z-content { position: relative; z-index: 1; }
+
+/* ── Typography utilities ────────────────────────────────────────────────────── */
+
+.gradient-text {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.font-mono { font-family: 'DM Mono', monospace; }
+
+/* ── Pulse animation (live indicator) ───────────────────────────────────────── */
+
+@keyframes ghoast-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .5; transform: scale(.8); }
+}
+
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--cyan);
+  animation: ghoast-pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+/* ── Marquee animation ──────────────────────────────────────────────────────── */
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  display: flex;
+  animation: marquee 24s linear infinite;
+  width: max-content;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .hide-mobile { display: none !important; }
+  .show-mobile { display: flex !important; }
+}
+
+@media (min-width: 769px) {
+  .show-mobile { display: none !important; }
 }
