@@ -27,6 +27,9 @@ function getDisconnectQueue(): Queue {
         removeOnFail: { count: 10 },
       },
     });
+    _disconnectQueue.on('error', (err) => {
+      logger.warn({ err }, 'Disconnect queue Redis error (queue features unavailable)');
+    });
   }
   return _disconnectQueue;
 }

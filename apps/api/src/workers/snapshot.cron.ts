@@ -26,6 +26,9 @@ function getSnapshotQueue(): Queue {
         removeOnFail: { count: 10 },
       },
     });
+    _snapshotQueue.on('error', (err) => {
+      logger.warn({ err }, 'Snapshot queue Redis error (queue features unavailable)');
+    });
   }
   return _snapshotQueue;
 }

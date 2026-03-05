@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Outfit, DM_Mono } from 'next/font/google';
 import './globals.css';
+import { AuthProvider } from '../context/AuthContext';
+import { ToastProvider } from '../context/ToastContext';
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -63,7 +65,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${outfit.variable} ${dmMono.variable}`}>
       <body style={{ fontFamily: "var(--font-outfit, 'Outfit', sans-serif)" }}>
-        {children}
+        <AuthProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

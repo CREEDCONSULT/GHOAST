@@ -12,8 +12,15 @@ const app = await buildServer();
 const port = parseInt(process.env.PORT ?? '3001', 10);
 
 // Start background cron workers (after server is built, before listening)
-await startSnapshotCron();
-await startDisconnectCron();
+// Non-fatal: BullMQ requires Redis Functions (FUNCTION LOAD) which may not be
+// supported by the Redis provider in dev. Crons failing here does not affect
+// auth, ghost listing, or manual unfollow.
+try {
+  await startSnapshotCron();
+  await startDisconnectCron();
+} catch (err) {
+  logger.warn({ err }, 'Cron workers could not start — queue features unavailable');
+}
 
 // Graceful shutdown — stop crons before server closes
 const shutdown = async () => {

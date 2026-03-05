@@ -80,6 +80,9 @@ export function getUnfollowQueue(): Queue<UnfollowJobData> {
         removeOnFail: { count: 50 },
       },
     });
+    _unfollowQueue.on('error', (err) => {
+      logger.warn({ err }, 'Unfollow queue Redis error (queue features unavailable)');
+    });
   }
   return _unfollowQueue;
 }
