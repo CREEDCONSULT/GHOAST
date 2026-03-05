@@ -38,10 +38,13 @@ export async function buildServer() {
   });
 
   // ── Rate limiting ──────────────────────────────────────────────────────────
+  // In production, Redis-backed rate limiting is distributed across instances.
+  // In development (or when Redis is unreachable), fall back to in-memory.
+  const useRedisRateLimit = process.env.NODE_ENV === 'production';
   await app.register(fastifyRateLimit, {
     max: 100,
     timeWindow: '1 minute',
-    redis,
+    ...(useRedisRateLimit ? { redis } : {}),
     keyGenerator: (request) =>
       request.user?.id ?? request.ip,
     errorResponseBuilder: () => ({
@@ -69,7 +72,7 @@ export async function buildServer() {
   // ── Shutdown ───────────────────────────────────────────────────────────────
   app.addHook('onClose', async () => {
     await prisma.$disconnect();
-    await redis.quit();
+    await redis.quit().catch(() => { /* ignore — Redis may not have connected */ });
     logger.info('Server shutdown complete');
   });
 

@@ -9,6 +9,7 @@ export const redis = new Redis(process.env.REDIS_URL, {
   maxRetriesPerRequest: null, // Required for BullMQ
   enableReadyCheck: false,
   lazyConnect: true,
+  retryStrategy: () => null, // Fail once and stop — avoids retry storms when Redis is unreachable
 });
 
 redis.on('connect', () => {
