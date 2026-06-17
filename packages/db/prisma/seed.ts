@@ -21,15 +21,19 @@ import { createCipheriv, randomBytes } from 'crypto';
 const prisma = new PrismaClient();
 
 // ── Encryption helper (mirrors apps/api/src/lib/encryption.ts) ───────────────
-// Uses the SESSION_TOKEN_ENCRYPTION_KEY from .env
+// Uses the SESSION_TOKEN_ENCRYPTION_KEY from .env.
+// Mirrors the API format: AES-256-GCM with "ciphertext:authTag" in encrypted.
 function encryptSessionToken(plaintext: string): { encrypted: string; iv: string } {
   const keyHex = process.env.SESSION_TOKEN_ENCRYPTION_KEY;
   if (!keyHex) throw new Error('SESSION_TOKEN_ENCRYPTION_KEY not set in environment');
   const key = Buffer.from(keyHex, 'hex');
-  const iv = randomBytes(16);
-  const cipher = createCipheriv('aes-256-cbc', key, iv);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  return { encrypted: encrypted.toString('hex'), iv: iv.toString('hex') };
+  return {
+    encrypted: `${encrypted.toString('hex')}:${cipher.getAuthTag().toString('hex')}`,
+    iv: iv.toString('hex'),
+  };
 }
 
 // ── Ghost definitions spread across all 5 tiers ───────────────────────────────

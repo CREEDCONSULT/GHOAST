@@ -3,7 +3,7 @@
  * Manages Instagram account connections for a Ghoast user.
  *
  * SECURITY:
- * - Session tokens encrypted with AES-256-CBC before storage
+ * - Session tokens encrypted with authenticated AES-256-GCM before storage
  * - session_token_encrypted and session_token_iv NEVER returned in any response
  * - Ownership verified on all account operations
  */
