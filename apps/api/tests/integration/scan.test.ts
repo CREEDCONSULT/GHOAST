@@ -155,6 +155,10 @@ describe('Scan routes — /api/v1/accounts/:id/scan', () => {
       });
 
       expect(res.statusCode).toBe(202);
+      expect(res.json<{ scanId: string; status: string }>()).toEqual({
+        scanId: ACCOUNT_ID,
+        status: 'started',
+      });
       expect(startScan).toHaveBeenCalledWith(TEST_USER_ID, ACCOUNT_ID);
     });
 

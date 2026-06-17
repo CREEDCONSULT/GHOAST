@@ -17,7 +17,7 @@ import { prisma } from '@ghoast/db';
 import { redis } from '../lib/redis.js';
 import { logger } from '../lib/logger.js';
 import { QUEUE_CONFIG } from '../config/queue.js';
-import { consumeCredit, getBalance, InsufficientCreditsError } from './billing.service.js';
+import { InsufficientCreditsError } from './billing.service.js';
 import type { UnfollowJobData } from '../workers/unfollow.worker.js';
 
 // ── Error types ───────────────────────────────────────────────────────────────

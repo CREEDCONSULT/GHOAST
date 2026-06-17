@@ -2,6 +2,14 @@
 // Access token lives in sessionStorage (cleared on tab close).
 // Refresh token is in an httpOnly cookie set by the server — never touched in JS.
 
+import type {
+  AccountStatsResponse,
+  GhostListResponse,
+  GhostResponse,
+  QueueStartResponse,
+  ScanStartResponse,
+} from '@ghoast/contracts';
+
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   return sessionStorage.getItem('ghoast_token');
@@ -185,11 +193,11 @@ export const api = {
     ),
 
   startScan: (accountId: string) =>
-    apiFetch<{ scanId: string }>(`/accounts/${accountId}/scan`, { method: 'POST' }),
+    apiFetch<ScanStartResponse>(`/accounts/${accountId}/scan`, { method: 'POST' }),
 
   // Queue
   startQueue: (accountId: string, ghostIds: string[]) =>
-    apiFetch<{ sessionId: string; jobCount: number; estimatedCompletionMinutes: number }>(
+    apiFetch<QueueStartResponse>(
       '/queue/start',
       { method: 'POST', body: { accountId, ghostIds } },
     ),
@@ -282,29 +290,7 @@ export interface Account {
   createdAt: string;
 }
 
-export type AccountType = 'PERSONAL' | 'CREATOR' | 'BRAND' | 'CELEBRITY';
-
-export interface Ghost {
-  id: string;
-  accountId: string;
-  instagramUserId: string;
-  handle: string;
-  displayName: string;
-  followersCount: number;
-  followingCount: number;
-  isVerified: boolean;
-  accountType: AccountType;
-  priorityScore: number;
-  tier: 1 | 2 | 3 | 4 | 5;
-  scoreAccountType: number;
-  scoreRatio: number;
-  scoreEngagement: number;
-  scoreSizeBand: number;
-  scorePostRecency: number;
-  lastPostDate: string | null;
-  removedAt: string | null;
-  isWhitelisted: boolean;
-}
+export type Ghost = GhostResponse;
 
 export interface GhostListParams {
   tier?: 1 | 2 | 3 | 4 | 5;
@@ -314,22 +300,5 @@ export interface GhostListParams {
   limit?: number;
 }
 
-export interface GhostListResponse {
-  ghosts: Ghost[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
-  dailyUnfollowCount: number;
-  dailyUnfollowCap: number;
-}
-
-export interface AccountStats {
-  totalGhosts: number;
-  removedGhosts: number;
-  averagePriorityScore: number;
-  tierBreakdown: Record<string, number>;
-  accountType: Record<string, number>;
-}
+export type { GhostListResponse };
+export type AccountStats = AccountStatsResponse;

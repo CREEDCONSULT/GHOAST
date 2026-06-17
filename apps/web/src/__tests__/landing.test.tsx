@@ -245,7 +245,7 @@ describe('Footer', () => {
   it('renders the logo home link or wordmark text', () => {
     render(<Footer />);
     // Wordmark split across spans — check the G lettermark div exists
-    const gMark = document.querySelector('footer div[style*="border-radius: 8px"]');
+    expect(document.querySelector('footer div[style*="border-radius: 8px"]')).toBeTruthy();
     // Fallback: check copyright text which is definitely present
     expect(screen.getByText(/all rights reserved/i)).toBeTruthy();
   });

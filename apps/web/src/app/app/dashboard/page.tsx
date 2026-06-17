@@ -361,7 +361,8 @@ export default function DashboardPage() {
           accountId={activeQueueState.accountId}
           totalJobs={activeQueueState.totalJobs}
           onComplete={handleQueueComplete}
-          onCancel={handleQueueCancelled}
+          onCancel={handleCancelQueue}
+          onCancelled={handleQueueCancelled}
           onPause={handlePauseQueue}
           isPausing={activeQueueState.status === 'pausing'}
           isCancelling={activeQueueState.status === 'cancelling'}

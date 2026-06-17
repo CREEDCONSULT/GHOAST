@@ -15,6 +15,7 @@
     "lint:fix": "eslint src --ext .ts,.tsx --fix"
   },
   "dependencies": {
+    "@ghoast/contracts": "*",
     "@ghoast/db": "*",
     "next": "^16.1.6",
     "react": "^19.0.0",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { streamQueueStatus, type QueueEvent } from '../../lib/api';
 import { Spinner } from '../ui/Spinner';
 
@@ -9,6 +9,7 @@ interface QueueProgressProps {
   totalJobs: number;
   onComplete: (removedIds: string[]) => void;
   onCancel: () => void;
+  onCancelled: () => void;
   onPause: () => void;
   isPausing: boolean;
   isCancelling: boolean;
@@ -19,6 +20,7 @@ export default function QueueProgress({
   totalJobs,
   onComplete,
   onCancel,
+  onCancelled,
   onPause,
   isPausing,
   isCancelling,
@@ -42,6 +44,29 @@ export default function QueueProgress({
     return () => clearInterval(tick);
   }, [rateLimitUntil]);
 
+  const handleEvent = useCallback((event: QueueEvent) => {
+    if (event.type === 'job_completed' && event.success) {
+      setCompleted((n) => n + 1);
+    }
+    if (event.type === 'job_started') {
+      setCurrentHandle(event.ghostHandle);
+    }
+    if (event.type === 'rate_limit_hit') {
+      setRateLimitUntil(new Date(event.pauseUntil));
+      setCurrentHandle(null);
+    }
+    if (event.type === 'queue_completed') {
+      setDone(true);
+      setCurrentHandle(null);
+      onComplete(removedIdsRef.current);
+    }
+    if (event.type === 'queue_cancelled') {
+      setDone(true);
+      setCurrentHandle(null);
+      onCancelled();
+    }
+  }, [onCancelled, onComplete]);
+
   // SSE stream
   useEffect(() => {
     const ctrl = new AbortController();
@@ -60,31 +85,7 @@ export default function QueueProgress({
 
     run();
     return () => { ctrl.abort(); };
-  }, [accountId]);
-
-  function handleEvent(event: QueueEvent) {
-    if (event.type === 'job_completed' && event.success) {
-      setCompleted((n) => n + 1);
-      // jobId maps to ghost, parent cleans up rows after full completion
-    }
-    if (event.type === 'job_started') {
-      setCurrentHandle(event.ghostHandle);
-    }
-    if (event.type === 'rate_limit_hit') {
-      setRateLimitUntil(new Date(event.pauseUntil));
-      setCurrentHandle(null);
-    }
-    if (event.type === 'queue_completed') {
-      setDone(true);
-      setCurrentHandle(null);
-      onComplete(removedIdsRef.current);
-    }
-    if (event.type === 'queue_cancelled') {
-      setDone(true);
-      setCurrentHandle(null);
-      onCancel();
-    }
-  }
+  }, [accountId, handleEvent]);
 
   const pct = totalJobs > 0 ? Math.round((completed / totalJobs) * 100) : 0;
 

@@ -15,6 +15,11 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import {
+  accountStatsResponseSchema,
+  ghostListResponseSchema,
+  type GhostResponse,
+} from '@ghoast/contracts';
 import { requireAuth } from '../middleware/requireAuth.js';
 import {
   listGhosts,
@@ -30,6 +35,19 @@ import {
   InstagramRateLimitError,
 } from '../services/ghosts.service.js';
 import { logger } from '../lib/logger.js';
+
+function toGhostResponse(
+  ghost: Awaited<ReturnType<typeof listGhosts>>['ghosts'][number],
+): GhostResponse {
+  return {
+    ...ghost,
+    accountType: ghost.accountType as GhostResponse['accountType'],
+    tier: ghost.tier as GhostResponse['tier'],
+    lastPostDate: ghost.lastPostDate?.toISOString() ?? null,
+    removedAt: ghost.removedAt?.toISOString() ?? null,
+    firstSeenAt: ghost.firstSeenAt.toISOString(),
+  };
+}
 
 // ── Validation schemas ─────────────────────────────────────────────────────────
 
@@ -74,11 +92,18 @@ export async function ghostRoutes(app: FastifyInstance): Promise<void> {
       try {
         const result = await listGhosts(userId, accountId, parsed.data);
         const dailyCount = await getDailyUnfollowCount(accountId);
-        return reply.status(200).send({
-          ...result,
+        const response = ghostListResponseSchema.parse({
+          ghosts: result.ghosts.map(toGhostResponse),
+          pagination: {
+            page: result.page,
+            limit: result.limit,
+            total: result.total,
+            pages: result.pages,
+          },
           dailyUnfollowCount: dailyCount,
           dailyUnfollowCap: 10,
         });
+        return reply.status(200).send(response);
       } catch (err) {
         if (err instanceof GhostAccountNotFoundError) {
           return reply.status(403).send({ error: 'Forbidden' });
@@ -145,7 +170,7 @@ export async function ghostRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         const stats = await getAccountStats(userId, accountId);
-        return reply.status(200).send(stats);
+        return reply.status(200).send(accountStatsResponseSchema.parse(stats));
       } catch (err) {
         if (err instanceof GhostAccountNotFoundError) {
           return reply.status(403).send({ error: 'Forbidden' });

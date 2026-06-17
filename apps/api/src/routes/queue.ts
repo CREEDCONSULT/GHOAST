@@ -12,6 +12,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { queueStartResponseSchema } from '@ghoast/contracts';
 import { requireAuth } from '../middleware/requireAuth.js';
 import {
   startQueue,
@@ -55,7 +56,7 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         const result = await startQueue(userId, accountId, ghostIds);
-        return reply.status(202).send(result);
+        return reply.status(202).send(queueStartResponseSchema.parse(result));
       } catch (err) {
         if (err instanceof QueueAccountNotFoundError) {
           return reply.status(403).send({ error: 'Forbidden' });

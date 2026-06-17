@@ -15,6 +15,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
+import { scanProgressResponseSchema, scanStartResponseSchema } from '@ghoast/contracts';
 import { requireAuth } from '../middleware/requireAuth.js';
 import {
   startScan,
@@ -38,7 +39,10 @@ export async function scanRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         await startScan(userId, accountId);
-        return reply.status(202).send({ message: 'Scan started' });
+        return reply.status(202).send(scanStartResponseSchema.parse({
+          scanId: accountId,
+          status: 'started',
+        }));
       } catch (err) {
         if (err instanceof ScanNotFoundError) {
           return reply.status(403).send({ error: 'Forbidden' });
@@ -64,9 +68,14 @@ export async function scanRoutes(app: FastifyInstance): Promise<void> {
       try {
         const progress = await getScanProgress(userId, accountId);
         if (!progress) {
-          return reply.status(200).send({ status: 'not_started', followingScanned: 0, followersScanned: 0, ghostCount: 0 });
+          return reply.status(200).send(scanProgressResponseSchema.parse({
+            status: 'not_started',
+            followingScanned: 0,
+            followersScanned: 0,
+            ghostCount: 0,
+          }));
         }
-        return reply.status(200).send(progress);
+        return reply.status(200).send(scanProgressResponseSchema.parse(progress));
       } catch (err) {
         if (err instanceof ScanNotFoundError) {
           return reply.status(403).send({ error: 'Forbidden' });

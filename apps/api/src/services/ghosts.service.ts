@@ -110,10 +110,9 @@ export interface ListGhostsResult {
 }
 
 export interface AccountStats {
-  followersCount: number;
-  followingCount: number;
-  ghostCount: number;
-  ratio: number;
+  totalGhosts: number;
+  removedGhosts: number;
+  averagePriorityScore: number;
   tierBreakdown: {
     tier1: number;
     tier2: number;
@@ -121,6 +120,7 @@ export interface AccountStats {
     tier4: number;
     tier5: number;
   };
+  accountType: Record<string, number>;
 }
 
 // ── Redis key helpers ─────────────────────────────────────────────────────────
@@ -288,19 +288,31 @@ export async function getAccountStats(
 ): Promise<AccountStats> {
   const account = await prisma.instagramAccount.findFirst({
     where: { id: accountId, userId },
-    select: {
-      followersCount: true,
-      followingCount: true,
-    },
+    select: { id: true },
   });
   if (!account) throw new GhostAccountNotFoundError();
 
-  // Count active (not removed) ghosts per tier
-  const tierCounts = await prisma.ghost.groupBy({
-    by: ['tier'],
-    where: { accountId, removedAt: null },
-    _count: { tier: true },
-  });
+  const activeWhere = { accountId, removedAt: null };
+
+  const [totalGhosts, removedGhosts, tierCounts, accountTypeCounts, scoreAggregate] =
+    await Promise.all([
+      prisma.ghost.count({ where: { accountId } }),
+      prisma.ghost.count({ where: { accountId, removedAt: { not: null } } }),
+      prisma.ghost.groupBy({
+        by: ['tier'],
+        where: activeWhere,
+        _count: { tier: true },
+      }),
+      prisma.ghost.groupBy({
+        by: ['accountType'],
+        where: activeWhere,
+        _count: { accountType: true },
+      }),
+      prisma.ghost.aggregate({
+        where: activeWhere,
+        _avg: { priorityScore: true },
+      }),
+    ]);
 
   const breakdown = { tier1: 0, tier2: 0, tier3: 0, tier4: 0, tier5: 0 };
   for (const row of tierCounts) {
@@ -308,18 +320,17 @@ export async function getAccountStats(
     if (key in breakdown) breakdown[key] = row._count.tier;
   }
 
-  const ghostCount = Object.values(breakdown).reduce((sum, n) => sum + n, 0);
-  const ratio =
-    account.followingCount > 0
-      ? parseFloat((account.followersCount / account.followingCount).toFixed(2))
-      : 0;
+  const accountType = { PERSONAL: 0, CREATOR: 0, BRAND: 0, CELEBRITY: 0 };
+  for (const row of accountTypeCounts) {
+    accountType[row.accountType] = row._count.accountType;
+  }
 
   return {
-    followersCount: account.followersCount,
-    followingCount: account.followingCount,
-    ghostCount,
-    ratio,
+    totalGhosts,
+    removedGhosts,
+    averagePriorityScore: Math.round(scoreAggregate._avg.priorityScore ?? 0),
     tierBreakdown: breakdown,
+    accountType,
   };
 }
 

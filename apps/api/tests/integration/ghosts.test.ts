@@ -164,11 +164,11 @@ const MOCK_LIST_RESULT = {
 };
 
 const MOCK_STATS = {
-  followersCount: 1000,
-  followingCount: 1200,
-  ghostCount: 87,
-  ratio: 0.83,
+  totalGhosts: 90,
+  removedGhosts: 3,
+  averagePriorityScore: 42,
   tierBreakdown: { tier1: 45, tier2: 22, tier3: 12, tier4: 7, tier5: 1 },
+  accountType: { PERSONAL: 60, CREATOR: 15, BRAND: 10, CELEBRITY: 2 },
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -232,11 +232,19 @@ describe('Ghost routes — /api/v1/accounts', () => {
       });
 
       expect(res.statusCode).toBe(200);
-      const body = res.json<typeof MOCK_LIST_RESULT & { dailyUnfollowCount: number }>();
+      const body = res.json<{
+        ghosts: Array<{ handle: string; firstSeenAt: string }>;
+        pagination: { total: number; page: number; limit: number; pages: number };
+        dailyUnfollowCount: number;
+        dailyUnfollowCap: number;
+      }>();
       expect(body.ghosts).toHaveLength(1);
-      expect(body.total).toBe(1);
+      expect(body.pagination.total).toBe(1);
+      expect(body.pagination.page).toBe(1);
       expect(body.ghosts[0]?.handle).toBe('ghostaccount');
+      expect(body.ghosts[0]?.firstSeenAt).toBe('2024-01-10T00:00:00.000Z');
       expect(body.dailyUnfollowCount).toBe(0);
+      expect(body.dailyUnfollowCap).toBe(10);
       expect(listGhosts).toHaveBeenCalledWith(TEST_USER_ID, ACCOUNT_ID, expect.any(Object));
     });
 
@@ -459,9 +467,11 @@ describe('Ghost routes — /api/v1/accounts', () => {
 
       expect(res.statusCode).toBe(200);
       const body = res.json<typeof MOCK_STATS>();
-      expect(body.followersCount).toBe(1000);
-      expect(body.ghostCount).toBe(87);
+      expect(body.totalGhosts).toBe(90);
+      expect(body.removedGhosts).toBe(3);
+      expect(body.averagePriorityScore).toBe(42);
       expect(body.tierBreakdown.tier1).toBe(45);
+      expect(body.accountType.PERSONAL).toBe(60);
     });
 
     it('returns 403 when account belongs to different user', async () => {
