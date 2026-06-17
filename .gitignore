@@ -12,6 +12,7 @@ node_modules/
 
 # Build outputs
 .next/
+.turbo/
 dist/
 build/
 out/

@@ -368,7 +368,7 @@ async function main() {
     data: {
       accountId: proAccount.id,
       date: todayDate,
-      unfolloweCount: 2, // matches schema field name (note: intentional typo in schema)
+      unfollowCount: 2,
       rateLimitHits: 0,
     },
   });

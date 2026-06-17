@@ -163,7 +163,7 @@ model QueueSession {
   id               String    @id @default(uuid())
   accountId        String    @map("account_id")
   date             String    // YYYY-MM-DD UTC
-  unfolloweCount   Int       @default(0) @map("unfollow_count")
+  unfollowCount    Int       @default(0) @map("unfollow_count")
   rateLimitHits    Int       @default(0) @map("rate_limit_hits")
   pausedUntil      DateTime? @map("paused_until")
   completedAt      DateTime? @map("completed_at")

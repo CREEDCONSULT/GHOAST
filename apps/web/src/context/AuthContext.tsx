@@ -27,12 +27,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Restore auth state from sessionStorage on mount
-    if (getToken()) {
-      const stored = getStoredUser();
-      setUserState(stored);
-    }
-    setIsLoading(false);
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (getToken()) {
+        setUserState(getStoredUser());
+      }
+      setIsLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

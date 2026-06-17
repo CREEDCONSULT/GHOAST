@@ -189,7 +189,7 @@ export const api = {
 
   // Queue
   startQueue: (accountId: string, ghostIds: string[]) =>
-    apiFetch<{ jobId: string; status: string; totalJobs: number; estimatedDuration: number }>(
+    apiFetch<{ sessionId: string; jobCount: number; estimatedCompletionMinutes: number }>(
       '/queue/start',
       { method: 'POST', body: { accountId, ghostIds } },
     ),

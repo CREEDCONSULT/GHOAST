@@ -15,9 +15,7 @@ import { Spinner } from '../../../components/ui/Spinner';
 type QueueState =
   | { status: 'idle' }
   | { status: 'starting' }
-  | { status: 'running'; jobId: string; totalJobs: number; accountId: string }
-  | { status: 'pausing' }
-  | { status: 'cancelling' };
+  | { status: 'running' | 'pausing' | 'cancelling'; sessionId: string; totalJobs: number; accountId: string };
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -165,11 +163,11 @@ export default function DashboardPage() {
     if (!account || selectedIds.size === 0) return;
     setQueueState({ status: 'starting' });
     try {
-      const { jobId, totalJobs } = await api.startQueue(
+      const { sessionId, jobCount } = await api.startQueue(
         account.id,
         Array.from(selectedIds),
       );
-      setQueueState({ status: 'running', jobId, totalJobs, accountId: account.id });
+      setQueueState({ status: 'running', sessionId, totalJobs: jobCount, accountId: account.id });
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         toast('Upgrade to Pro to use the bulk queue.', 'warning');
@@ -245,10 +243,12 @@ export default function DashboardPage() {
   if (!account || !stats) return null;
 
   const selectedGhosts = ghosts.filter((g) => selectedIds.has(g.id));
-  const queueRunning =
+  const activeQueueState =
     queueState.status === 'running' ||
     queueState.status === 'pausing' ||
-    queueState.status === 'cancelling';
+    queueState.status === 'cancelling'
+      ? queueState
+      : null;
 
   return (
     <div>
@@ -346,7 +346,7 @@ export default function DashboardPage() {
       )}
 
       {/* Queue panel (Pro users with selections) */}
-      {isPro && !queueRunning && (
+      {isPro && !activeQueueState && (
         <QueuePanel
           selectedGhosts={selectedGhosts}
           onStart={handleStartQueue}
@@ -356,15 +356,15 @@ export default function DashboardPage() {
       )}
 
       {/* Queue progress (active queue) */}
-      {queueRunning && queueState.status !== 'starting' && (
+      {activeQueueState && (
         <QueueProgress
-          accountId={queueState.accountId}
-          totalJobs={queueState.totalJobs}
+          accountId={activeQueueState.accountId}
+          totalJobs={activeQueueState.totalJobs}
           onComplete={handleQueueComplete}
           onCancel={handleQueueCancelled}
           onPause={handlePauseQueue}
-          isPausing={queueState.status === 'pausing'}
-          isCancelling={queueState.status === 'cancelling'}
+          isPausing={activeQueueState.status === 'pausing'}
+          isCancelling={activeQueueState.status === 'cancelling'}
         />
       )}
 
