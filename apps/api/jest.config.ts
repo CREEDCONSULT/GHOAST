@@ -7,6 +7,7 @@ const config: Config = {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@ghoast/db$': '<rootDir>/../../packages/db/src/index.ts',
+    '^@ghoast/contracts$': '<rootDir>/../../packages/contracts/src/index.ts',
   },
   transform: {
     '^.+\\.tsx?$': [
