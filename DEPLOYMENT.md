@@ -96,7 +96,7 @@ The root `Dockerfile` builds the full monorepo once. Each application service
 selects its process with `SERVICE_ROLE`:
 
 - `web`: `SERVICE_ROLE=web`, routed to container port `3000`
-- `api`: `SERVICE_ROLE=api`, routed to container port `3001`
+- `api`: `SERVICE_ROLE=api`, routed to Railway's injected `PORT`
 - `worker`: `SERVICE_ROLE=worker`, no public domain
 
 The API role runs `npm run db:migrate:prod` before starting the server.
