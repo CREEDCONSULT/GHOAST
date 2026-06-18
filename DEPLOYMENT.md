@@ -88,6 +88,28 @@ Worker:
 npm run start:worker --workspace=apps/api
 ```
 
+## Railway
+
+Railway project: `GHOAST`
+
+The root `Dockerfile` builds the full monorepo once. Each application service
+selects its process with `SERVICE_ROLE`:
+
+- `web`: `SERVICE_ROLE=web`, routed to container port `3000`
+- `api`: `SERVICE_ROLE=api`, routed to container port `3001`
+- `worker`: `SERVICE_ROLE=worker`, no public domain
+
+The API role runs `npm run db:migrate:prod` before starting the server.
+
+Review URLs:
+
+- Web: `https://web-production-4b55f8.up.railway.app`
+- API: `https://api-production-945c0.up.railway.app`
+- Health: `https://api-production-945c0.up.railway.app/api/v1/health`
+
+Postgres and Redis are managed Railway services. The API and worker must share
+the same `SESSION_TOKEN_ENCRYPTION_KEY`.
+
 ## Health Checks
 
 API:
