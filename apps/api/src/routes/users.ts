@@ -26,7 +26,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
 
     try {
       await deleteUserAccount(userId);
-      void reply.clearCookie('ghoast_refresh', { path: '/api/v1/auth/refresh' });
+      void reply.clearCookie('ghoast_refresh', { path: '/' });
       return reply.status(204).send();
     } catch (err) {
       if (err instanceof UserDeletionNotFoundError) {

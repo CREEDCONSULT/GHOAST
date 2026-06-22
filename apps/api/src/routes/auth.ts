@@ -27,7 +27,8 @@ const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict' as const,
-  path: '/api/v1/auth/refresh',
+  // Must be visible to the web app's /app middleware as well as the refresh route.
+  path: '/',
   maxAge: 30 * 24 * 60 * 60, // 30 days in seconds
 };
 

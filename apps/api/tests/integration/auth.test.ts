@@ -199,6 +199,7 @@ describe('Auth routes — /api/v1/auth', () => {
       // Web: refreshToken in cookie, NOT in response body
       expect(body).not.toHaveProperty('refreshToken');
       expect(getCookieValue(res.headers as Record<string, string | string[]>, 'ghoast_refresh')).toBe(MOCK_TOKENS.refreshToken);
+      expect(String(res.headers['set-cookie'])).toContain('Path=/');
     });
 
     it('returns 201 with refreshToken in body for mobile (X-Platform: mobile)', async () => {
@@ -283,6 +284,7 @@ describe('Auth routes — /api/v1/auth', () => {
       expect(body.accessToken).toBe(MOCK_TOKENS.accessToken);
       expect(body).not.toHaveProperty('refreshToken');
       expect(getCookieValue(res.headers as Record<string, string | string[]>, 'ghoast_refresh')).toBe(MOCK_TOKENS.refreshToken);
+      expect(String(res.headers['set-cookie'])).toContain('Path=/');
     });
 
     it('returns 200 with refreshToken in body for mobile', async () => {
@@ -349,6 +351,7 @@ describe('Auth routes — /api/v1/auth', () => {
       expect(body.accessToken).toBe(newTokens.accessToken);
       expect(body).not.toHaveProperty('refreshToken');
       expect(getCookieValue(res.headers as Record<string, string | string[]>, 'ghoast_refresh')).toBe(newTokens.refreshToken);
+      expect(String(res.headers['set-cookie'])).toContain('Path=/');
       expect(refresh).toHaveBeenCalledWith(MOCK_TOKENS.refreshToken);
     });
 
@@ -383,6 +386,7 @@ describe('Auth routes — /api/v1/auth', () => {
       const cookieStr = Array.isArray(rawCookie) ? rawCookie.join(' ') : (rawCookie ?? '');
       // Fastify clears by setting empty value or Max-Age=0
       expect(cookieStr).toMatch(/ghoast_refresh=;|Max-Age=0/i);
+      expect(cookieStr).toContain('Path=/');
     });
   });
 
@@ -400,6 +404,7 @@ describe('Auth routes — /api/v1/auth', () => {
       const rawCookie = res.headers['set-cookie'];
       const cookieStr = Array.isArray(rawCookie) ? rawCookie.join(' ') : (rawCookie ?? '');
       expect(cookieStr).toMatch(/ghoast_refresh=;|Max-Age=0/i);
+      expect(cookieStr).toContain('Path=/');
     });
 
     it('returns 204 even when no cookie present', async () => {

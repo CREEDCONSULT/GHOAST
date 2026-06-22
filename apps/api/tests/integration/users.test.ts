@@ -102,5 +102,6 @@ describe('User routes', () => {
     expect(response.statusCode).toBe(204);
     expect(deleteUserAccount).toHaveBeenCalledWith('test-user-id');
     expect(response.headers['set-cookie']).toContain('ghoast_refresh=');
+    expect(response.headers['set-cookie']).toContain('Path=/');
   });
 });

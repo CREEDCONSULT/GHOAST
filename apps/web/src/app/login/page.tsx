@@ -164,27 +164,31 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Dev credentials hint */}
-      <div
-        style={{
-          marginTop: 20,
-          padding: '10px 16px',
-          background: 'rgba(123,79,255,.08)',
-          border: '1px solid rgba(123,79,255,.2)',
-          borderRadius: 10,
-          fontSize: 12,
-          color: 'var(--muted)',
-          maxWidth: 440,
-          width: '100%',
-          position: 'relative',
-          zIndex: 1,
-          lineHeight: 1.7,
-        }}
-      >
-        <strong style={{ color: 'var(--ghost-text)' }}>Test accounts:</strong>{' '}
-        free@ghoast.dev / pro@ghoast.dev / proplus@ghoast.dev
-        <br />Password: <span style={{ fontFamily: 'DM Mono', color: 'var(--ghost-text)' }}>Password123!</span>
-      </div>
+      {process.env.NODE_ENV === 'development' && (
+        <div
+          style={{
+            marginTop: 20,
+            padding: '10px 16px',
+            background: 'rgba(123,79,255,.08)',
+            border: '1px solid rgba(123,79,255,.2)',
+            borderRadius: 10,
+            fontSize: 12,
+            color: 'var(--muted)',
+            maxWidth: 440,
+            width: '100%',
+            position: 'relative',
+            zIndex: 1,
+            lineHeight: 1.7,
+          }}
+        >
+          <strong style={{ color: 'var(--ghost-text)' }}>Local test accounts:</strong>{' '}
+          free@ghoast.dev / pro@ghoast.dev / proplus@ghoast.dev
+          <br />Password:{' '}
+          <span style={{ fontFamily: 'DM Mono', color: 'var(--ghost-text)' }}>
+            Password123!
+          </span>
+        </div>
+      )}
     </div>
   );
 }
