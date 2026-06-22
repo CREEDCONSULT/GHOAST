@@ -19,6 +19,11 @@ import { decrypt } from '../lib/encryption.js';
 import { logger } from '../lib/logger.js';
 import { redis } from '../lib/redis.js';
 import { unfollowUser, SessionExpiredError, InstagramRateLimitError } from '../lib/instagram.js';
+import {
+  assertInstagramActionsEnabled,
+  getTrialManualActionLimit,
+  InstagramActionsDisabledError,
+} from '../config/action-policy.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -62,7 +67,7 @@ export class DailyCapReachedError extends Error {
 }
 
 // Re-export Instagram errors so routes can instanceof-check them
-export { SessionExpiredError, InstagramRateLimitError };
+export { SessionExpiredError, InstagramRateLimitError, InstagramActionsDisabledError };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -235,6 +240,8 @@ export async function unfollowGhost(
   accountId: string,
   ghostId: string,
 ): Promise<void> {
+  await assertInstagramActionsEnabled(accountId);
+
   // 1. Verify account ownership + get session token
   const account = await prisma.instagramAccount.findFirst({
     where: { id: accountId, userId },
@@ -261,7 +268,8 @@ export async function unfollowGhost(
   // 4. Daily cap check
   const capKey = dailyCapKey(accountId);
   const currentCount = parseInt((await redis.get(capKey)) ?? '0', 10);
-  if (currentCount >= FREE_DAILY_UNFOLLOW_CAP) throw new DailyCapReachedError();
+  const actionCap = Math.min(FREE_DAILY_UNFOLLOW_CAP, getTrialManualActionLimit());
+  if (currentCount >= actionCap) throw new DailyCapReachedError();
 
   // 5. Execute unfollow via Instagram private API
   const sessionToken = decrypt(account.sessionTokenEncrypted, account.sessionTokenIv);

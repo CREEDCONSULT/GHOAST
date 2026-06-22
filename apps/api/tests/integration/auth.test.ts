@@ -30,6 +30,7 @@ jest.mock('../../src/lib/redis.js', () => {
       incr: jest.fn().mockResolvedValue(1),
       pexpire: jest.fn().mockResolvedValue(1),
       pttl: jest.fn().mockResolvedValue(60_000),
+      ping: jest.fn().mockResolvedValue('PONG'),
       del: jest.fn().mockResolvedValue(1),
       quit: jest.fn().mockResolvedValue('OK'),
       // @fastify/rate-limit registers this Lua command via defineCommand.
@@ -76,6 +77,7 @@ jest.mock('../../src/services/auth.service.js', () => {
 // ── Prisma mock (server's onClose hook calls $disconnect) ────────────────────
 jest.mock('@ghoast/db', () => ({
   prisma: {
+    $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
     $disconnect: jest.fn().mockResolvedValue(undefined),
   },
 }));
@@ -412,7 +414,14 @@ describe('Auth routes — /api/v1/auth', () => {
     it('returns 200 with status ok', async () => {
       const res = await app.inject({ method: 'GET', url: '/api/v1/health' });
       expect(res.statusCode).toBe(200);
-      expect(res.json<{ status: string }>().status).toBe('ok');
+      expect(res.json()).toMatchObject({
+        status: 'ok',
+        dependencies: { database: 'ok', cache: 'ok' },
+        instagramActions: {
+          configured: false,
+          emergencyStopped: false,
+        },
+      });
     });
   });
 });

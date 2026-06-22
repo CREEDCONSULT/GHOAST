@@ -19,7 +19,13 @@ import {
   AccountAlreadyConnectedError,
   AccountLimitReachedError,
 } from '../services/accounts.service.js';
-import { SessionExpiredError, InstagramRateLimitError } from '../lib/instagram.js';
+import {
+  SessionExpiredError,
+  InstagramRateLimitError,
+  InstagramApiError,
+  InstagramChallengeError,
+  InstagramTemporarilyBlockedError,
+} from '../lib/instagram.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { logger } from '../lib/logger.js';
 
@@ -32,6 +38,8 @@ const connectSchema = z.object({
     .min(20, 'Session token is too short')
     .max(512, 'Session token is too long')
     .regex(/^[\w%.-]+$/, 'Session token contains invalid characters'),
+  disclosureAccepted: z.literal(true),
+  disclosureVersion: z.literal('2026-06-22'),
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -51,11 +59,11 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const { sessionToken } = parse.data;
+      const { sessionToken, disclosureVersion } = parse.data;
       const userId = request.user!.id;
 
       try {
-        const account = await connectAccount(userId, sessionToken);
+        const account = await connectAccount(userId, sessionToken, disclosureVersion);
         return reply.status(201).send({ account });
       } catch (err) {
         if (err instanceof SessionExpiredError) {
@@ -73,6 +81,33 @@ export async function accountRoutes(app: FastifyInstance): Promise<void> {
             error: 'Too Many Requests',
             message: err.message,
             code: 'INSTAGRAM_RATE_LIMIT',
+          });
+        }
+
+        if (err instanceof InstagramChallengeError) {
+          return reply.status(423).send({
+            statusCode: 423,
+            error: 'Locked',
+            message: err.message,
+            code: 'INSTAGRAM_CHALLENGE_REQUIRED',
+          });
+        }
+
+        if (err instanceof InstagramTemporarilyBlockedError) {
+          return reply.status(429).send({
+            statusCode: 429,
+            error: 'Too Many Requests',
+            message: err.message,
+            code: 'INSTAGRAM_TEMPORARILY_BLOCKED',
+          });
+        }
+
+        if (err instanceof InstagramApiError) {
+          return reply.status(502).send({
+            statusCode: 502,
+            error: 'Bad Gateway',
+            message: 'Instagram rejected the connection request. Verify the session and try again.',
+            code: 'INSTAGRAM_UPSTREAM_REJECTED',
           });
         }
 

@@ -27,7 +27,12 @@ jest.mock('@ghoast/db', () => ({
       findUnique: jest.fn(),
       update: jest.fn().mockResolvedValue({}),
     },
+    instagramAccount: {
+      findMany: jest.fn().mockResolvedValue([]),
+      updateMany: jest.fn().mockResolvedValue({}),
+    },
     subscription: {
+      findMany: jest.fn(),
       upsert: jest.fn().mockResolvedValue({}),
       updateMany: jest.fn().mockResolvedValue({}),
     },
@@ -64,7 +69,7 @@ jest.mock('stripe', () => {
     billingPortal: { sessions: { create: jest.fn() } },
     paymentIntents: { create: jest.fn() },
     prices: { retrieve: jest.fn() },
-    subscriptions: { retrieve: jest.fn() },
+    subscriptions: { retrieve: jest.fn(), cancel: jest.fn() },
   };
   return jest.fn().mockImplementation(() => mockStripe);
 });
@@ -79,6 +84,7 @@ import {
   InvalidWebhookSignatureError,
   InsufficientCreditsError,
   UserNotFoundError,
+  cancelUserSubscriptions,
 } from '../../src/services/billing.service.js';
 
 // Get the mocked stripe instance
@@ -86,6 +92,25 @@ const mockStripeInstance = new (Stripe as jest.MockedClass<typeof Stripe>)(
   'sk_test_placeholder',
   { apiVersion: '2024-06-20' },
 );
+
+describe('cancelUserSubscriptions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('cancels every active Stripe subscription for the user', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockResolvedValue([
+      { stripeSubscriptionId: 'sub_1' },
+      { stripeSubscriptionId: 'sub_2' },
+    ]);
+
+    await cancelUserSubscriptions('user-1');
+
+    expect(mockStripeInstance.subscriptions.cancel).toHaveBeenCalledTimes(2);
+    expect(mockStripeInstance.subscriptions.cancel).toHaveBeenCalledWith('sub_1');
+    expect(mockStripeInstance.subscriptions.cancel).toHaveBeenCalledWith('sub_2');
+  });
+});
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

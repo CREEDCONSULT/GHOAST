@@ -22,6 +22,8 @@ import {
   QueueTier5RejectedError,
   QueueDailyCapExceededError,
   QueueAccessDeniedError,
+  InstagramActionsDisabledError,
+  QueueTrialLimitExceededError,
 } from '../services/queue.service.js';
 import { redis } from '../lib/redis.js';
 import { logger } from '../lib/logger.js';
@@ -69,6 +71,20 @@ export async function queueRoutes(app: FastifyInstance): Promise<void> {
         }
         if (err instanceof QueueAccessDeniedError) {
           return reply.status(403).send({ error: 'Forbidden', code: 'UPGRADE_REQUIRED', upgrade_url: '/pricing', message: err.message });
+        }
+        if (err instanceof InstagramActionsDisabledError) {
+          return reply.status(503).send({
+            error: 'Service Unavailable',
+            code: err.code,
+            message: err.message,
+          });
+        }
+        if (err instanceof QueueTrialLimitExceededError) {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            code: 'TRIAL_QUEUE_LIMIT_EXCEEDED',
+            message: err.message,
+          });
         }
         logger.error({ accountId, userId, err }, 'Failed to start queue');
         return reply.status(500).send({ error: 'Internal Server Error' });

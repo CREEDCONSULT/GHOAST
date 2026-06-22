@@ -1,10 +1,14 @@
 import { createUnfollowWorker } from './unfollow.worker.js';
 import { logger } from '../lib/logger.js';
 import { redis } from '../lib/redis.js';
+import { areInstagramActionsConfigured } from '../config/action-policy.js';
 
 const worker = createUnfollowWorker();
 
-logger.info('Unfollow worker process started');
+logger.info(
+  { instagramActionsConfigured: areInstagramActionsConfigured() },
+  'Unfollow worker process started',
+);
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'Stopping unfollow worker process');

@@ -163,7 +163,11 @@ export const api = {
   connectAccount: (sessionToken: string) =>
     apiFetch<{ account: Account }>('/accounts/connect', {
       method: 'POST',
-      body: { sessionToken },
+      body: {
+        sessionToken,
+        disclosureAccepted: true,
+        disclosureVersion: '2026-06-22',
+      },
     }),
 
   disconnectAccount: (id: string) =>
@@ -217,6 +221,12 @@ export const api = {
 
   getBalance: () =>
     apiFetch<{ balance: number }>('/billing/balance'),
+
+  deleteAccount: () =>
+    apiFetch<void>('/users/me', {
+      method: 'DELETE',
+      body: { confirmation: 'DELETE' },
+    }),
 };
 
 // ── SSE helper ────────────────────────────────────────────────────────────────

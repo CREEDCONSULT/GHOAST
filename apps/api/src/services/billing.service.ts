@@ -149,6 +149,25 @@ export async function createSubscribeCheckout(
   return session.url;
 }
 
+export async function cancelUserSubscriptions(userId: string): Promise<void> {
+  const subscriptions = await prisma.subscription.findMany({
+    where: {
+      userId,
+      status: { in: ['ACTIVE', 'PAST_DUE', 'UNPAID'] },
+    },
+    select: { stripeSubscriptionId: true },
+  });
+
+  if (subscriptions.length === 0) return;
+
+  const stripe = getStripeClient();
+  await Promise.all(
+    subscriptions.map(({ stripeSubscriptionId }) =>
+      stripe.subscriptions.cancel(stripeSubscriptionId),
+    ),
+  );
+}
+
 /**
  * Creates a Stripe Payment Intent for a credit pack purchase.
  * Returns the client_secret for the frontend to complete payment.

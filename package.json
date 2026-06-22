@@ -30,7 +30,10 @@
     "db:seed": "npm run db:seed --workspace=packages/db",
     "db:studio": "npm run db:studio --workspace=packages/db",
     "queue:inspect": "npm run queue:inspect --workspace=apps/api",
-    "queue:clear": "npm run queue:clear --workspace=apps/api"
+    "queue:clear": "npm run queue:clear --workspace=apps/api",
+    "actions:stop": "npm run actions:stop --workspace=apps/api",
+    "actions:resume": "npm run actions:resume --workspace=apps/api",
+    "actions:status": "npm run actions:status --workspace=apps/api"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -45,5 +48,9 @@
   "packageManager": "npm@10.0.0",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.10",
+    "qs": "^6.15.2"
   }
 }

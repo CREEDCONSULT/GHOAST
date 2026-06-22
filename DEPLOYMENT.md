@@ -19,6 +19,10 @@ Use `.env.example` as the source list. Required for launch:
 - `API_URL`
 - `DATABASE_URL`
 - `REDIS_URL`
+- `INSTAGRAM_ACTIONS_ENABLED=false`
+- `TRIAL_ALLOWED_ACCOUNT_IDS`
+- `TRIAL_MAX_MANUAL_ACTIONS=1`
+- `TRIAL_MAX_QUEUE_SIZE=3`
 - `SESSION_TOKEN_ENCRYPTION_KEY`
 - `JWT_SECRET`
 - `JWT_REFRESH_SECRET`
@@ -109,6 +113,30 @@ Review URLs:
 
 Postgres and Redis are managed Railway services. The API and worker must share
 the same `SESSION_TOKEN_ENCRYPTION_KEY`.
+
+Instagram actions are deny-by-default. Keep `INSTAGRAM_ACTIONS_ENABLED=false`
+until the read-only trial passes. The Redis emergency stop can be managed with:
+
+```bash
+npm run actions:status
+npm run actions:stop
+npm run actions:resume
+```
+
+### Trial release gate
+
+Keep `INSTAGRAM_ACTIONS_ENABLED=false` until all of the following are true:
+
+1. The deployed `/api/v1/health` response reports database and cache as `ok`.
+2. A disposable Instagram trial account ID is the only value in
+   `TRIAL_ALLOWED_ACCOUNT_IDS`.
+3. The operator has tested `npm run actions:stop` against production Redis.
+4. The account connection disclosure has been accepted and persisted.
+5. One manual unfollow succeeds, is reflected in Ghoast, and is verified in Instagram.
+6. Challenge, temporary-block, and rate-limit responses stop the trial immediately.
+
+After the controlled trial, run `npm run actions:stop` and set
+`INSTAGRAM_ACTIONS_ENABLED=false` before reviewing logs and results.
 
 ## Health Checks
 

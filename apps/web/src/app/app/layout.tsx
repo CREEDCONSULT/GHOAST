@@ -85,6 +85,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
         {/* Right side */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link href="/app/settings" style={{ color: 'var(--muted)', fontSize: 13 }}>
+            Settings
+          </Link>
+
           {/* Tier badge */}
           <div
             style={{

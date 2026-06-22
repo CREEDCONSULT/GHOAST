@@ -14,10 +14,15 @@ import { billingRoutes, stripeWebhookRoute } from './routes/billing.js';
 import { queueRoutes } from './routes/queue.js';
 import { snapshotRoutes } from './routes/snapshots.js';
 import { whitelistRoutes } from './routes/whitelist.js';
+import { userRoutes } from './routes/users.js';
+import {
+  areInstagramActionsConfigured,
+  isInstagramEmergencyStopped,
+} from './config/action-policy.js';
 
 export async function buildServer() {
   const app = Fastify({
-    logger,
+    loggerInstance: logger,
     disableRequestLogging: false,
     trustProxy: true,
   });
@@ -66,7 +71,29 @@ export async function buildServer() {
     await v1.register(queueRoutes, { prefix: '/queue' });
     await v1.register(snapshotRoutes, { prefix: '/accounts' });
     await v1.register(whitelistRoutes, { prefix: '/accounts' });
-    v1.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+    await v1.register(userRoutes, { prefix: '/users' });
+    v1.get('/health', async () => {
+      const [database, cache] = await Promise.all([
+        prisma.$queryRaw`SELECT 1`
+          .then(() => 'ok' as const)
+          .catch(() => 'unavailable' as const),
+        redis.ping()
+          .then(() => 'ok' as const)
+          .catch(() => 'unavailable' as const),
+      ]);
+      const emergencyStopped =
+        cache === 'ok' ? await isInstagramEmergencyStopped().catch(() => true) : true;
+
+      return {
+        status: database === 'ok' && cache === 'ok' ? 'ok' : 'degraded',
+        timestamp: new Date().toISOString(),
+        dependencies: { database, cache },
+        instagramActions: {
+          configured: areInstagramActionsConfigured(),
+          emergencyStopped,
+        },
+      };
+    });
   }, { prefix: '/api/v1' });
 
   // ── Shutdown ───────────────────────────────────────────────────────────────

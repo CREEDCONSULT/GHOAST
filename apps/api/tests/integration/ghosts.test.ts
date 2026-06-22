@@ -71,6 +71,10 @@ jest.mock('../../src/services/ghosts.service.js', () => {
   class InstagramRateLimitError extends Error {
     constructor() { super('Rate limit'); this.name = 'InstagramRateLimitError'; }
   }
+  class InstagramActionsDisabledError extends Error {
+    readonly code = 'INSTAGRAM_ACTIONS_DISABLED';
+    constructor() { super('Instagram actions are temporarily disabled.'); this.name = 'InstagramActionsDisabledError'; }
+  }
   return {
     listGhosts: jest.fn(),
     unfollowGhost: jest.fn(),
@@ -83,6 +87,7 @@ jest.mock('../../src/services/ghosts.service.js', () => {
     DailyCapReachedError,
     SessionExpiredError,
     InstagramRateLimitError,
+    InstagramActionsDisabledError,
     dailyCapKey: (id: string) => `daily_unfollow:${id}:2024-01-01`,
   };
 });
@@ -121,6 +126,7 @@ import {
   DailyCapReachedError,
   SessionExpiredError,
   InstagramRateLimitError,
+  InstagramActionsDisabledError,
 } from '../../src/services/ghosts.service.js';
 import { prisma } from '@ghoast/db';
 
@@ -428,6 +434,19 @@ describe('Ghost routes — /api/v1/accounts', () => {
 
       expect(res.statusCode).toBe(429);
       expect(res.json<{ code: string }>().code).toBe('INSTAGRAM_RATE_LIMIT');
+    });
+
+    it('returns 503 when Instagram actions are disabled', async () => {
+      (unfollowGhost as jest.Mock).mockRejectedValue(new InstagramActionsDisabledError());
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/api/v1/accounts/${ACCOUNT_ID}/ghosts/${GHOST_ID}/unfollow`,
+        headers: AUTH_HEADERS,
+      });
+
+      expect(res.statusCode).toBe(503);
+      expect(res.json<{ code: string }>().code).toBe('INSTAGRAM_ACTIONS_DISABLED');
     });
 
     it('returns 403 when account belongs to different user', async () => {

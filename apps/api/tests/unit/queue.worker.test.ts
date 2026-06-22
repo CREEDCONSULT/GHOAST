@@ -23,6 +23,7 @@ process.env.JWT_SECRET = 'test-jwt-secret-at-least-32-chars-long!!';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-at-least-32-chars-long!!';
 process.env.SESSION_TOKEN_ENCRYPTION_KEY = '0'.repeat(64);
 process.env.STRIPE_SECRET_KEY = 'sk_test_placeholder_for_tests';
+process.env.INSTAGRAM_ACTIONS_ENABLED = 'true';
 
 // ── Queue config mock (0ms delays for fast tests) ─────────────────────────────
 jest.mock('../../src/config/queue.js', () => ({
@@ -108,6 +109,13 @@ jest.mock('../../src/lib/instagram.js', () => ({
   getUserInfo: jest.fn(),
 }));
 
+jest.mock('../../src/config/action-policy.js', () => ({
+  assertInstagramActionsEnabled: jest.fn().mockResolvedValue(undefined),
+  InstagramActionsDisabledError: class InstagramActionsDisabledError extends Error {
+    readonly code = 'INSTAGRAM_ACTIONS_DISABLED';
+  },
+}));
+
 // ── Billing service mock ──────────────────────────────────────────────────────
 jest.mock('../../src/services/billing.service.js', () => ({
   consumeCredit: jest.fn().mockResolvedValue(4),
@@ -133,6 +141,7 @@ import { redis } from '../../src/lib/redis.js';
 import { unfollowUser, SessionExpiredError, InstagramRateLimitError } from '../../src/lib/instagram.js';
 import { consumeCredit } from '../../src/services/billing.service.js';
 import { createUnfollowWorker } from '../../src/workers/unfollow.worker.js';
+import { assertInstagramActionsEnabled } from '../../src/config/action-policy.js';
 import type { UnfollowJobData, UnfollowJobResult } from '../../src/workers/unfollow.worker.js';
 
 // ── Fake data ─────────────────────────────────────────────────────────────────
@@ -188,6 +197,18 @@ describe('Unfollow Worker — processUnfollowJob', () => {
     (redis.publish as jest.Mock).mockResolvedValue(0);
     (unfollowUser as jest.Mock).mockResolvedValue(undefined);
     (consumeCredit as jest.Mock).mockResolvedValue(4);
+    (assertInstagramActionsEnabled as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it('checks the destructive-action policy before reading account data', async () => {
+    (assertInstagramActionsEnabled as jest.Mock).mockRejectedValue(
+      new Error('actions disabled'),
+    );
+
+    const job = makeJob(makeJobData());
+    await expect(capturedProcessor!(job)).rejects.toThrow('actions disabled');
+    expect(prisma.instagramAccount.findFirst).not.toHaveBeenCalled();
+    expect(unfollowUser).not.toHaveBeenCalled();
   });
 
   // ── Account not found ────────────────────────────────────────────────────

@@ -39,6 +39,20 @@ export class InstagramApiError extends Error {
   }
 }
 
+export class InstagramChallengeError extends Error {
+  constructor() {
+    super('Instagram requires an account verification challenge before continuing.');
+    this.name = 'InstagramChallengeError';
+  }
+}
+
+export class InstagramTemporarilyBlockedError extends Error {
+  constructor() {
+    super('Instagram temporarily blocked this action. Please wait before trying again.');
+    this.name = 'InstagramTemporarilyBlockedError';
+  }
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface InstagramUserInfo {
@@ -95,23 +109,52 @@ function randomDelay(): Promise<void> {
   return sleep(ms);
 }
 
-async function fetchWithTimeout(url: string, headers: Record<string, string>): Promise<Response> {
+interface InstagramRequestOptions {
+  method?: 'GET' | 'POST';
+  headers: Record<string, string>;
+  body?: string;
+}
+
+async function fetchWithTimeout(url: string, options: InstagramRequestOptions): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(url, { method: 'GET', headers, signal: controller.signal });
+    const response = await fetch(url, {
+      method: options.method ?? 'GET',
+      headers: options.headers,
+      ...(options.body !== undefined && { body: options.body }),
+      signal: controller.signal,
+    });
     return response;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function handleErrorResponse(response: Response): never {
+async function handleErrorResponse(response: Response): Promise<never> {
   if (response.status === 401) throw new SessionExpiredError();
   if (response.status === 429) {
     logger.warn('Instagram API rate limit hit');
     throw new InstagramRateLimitError();
   }
+
+  const responseText = await response.text().catch(() => '');
+  const normalized = responseText.toLowerCase();
+  if (
+    normalized.includes('challenge_required') ||
+    normalized.includes('checkpoint_required') ||
+    normalized.includes('challenge')
+  ) {
+    throw new InstagramChallengeError();
+  }
+  if (
+    normalized.includes('temporarily blocked') ||
+    normalized.includes('feedback_required') ||
+    normalized.includes('please wait')
+  ) {
+    throw new InstagramTemporarilyBlockedError();
+  }
+
   logger.warn({ status: response.status }, 'Unexpected Instagram API response');
   throw new InstagramApiError(response.status, `Instagram API returned ${response.status}`);
 }
@@ -120,6 +163,8 @@ function wrapNetworkError(err: unknown): never {
   if (
     err instanceof SessionExpiredError ||
     err instanceof InstagramRateLimitError ||
+    err instanceof InstagramChallengeError ||
+    err instanceof InstagramTemporarilyBlockedError ||
     err instanceof InstagramApiError
   ) {
     throw err;
@@ -157,10 +202,10 @@ export async function fetchInstagramUserInfo(sessionToken: string): Promise<Inst
   try {
     const response = await fetchWithTimeout(
       `${INSTAGRAM_API_BASE}/accounts/current_user/?edit=true`,
-      buildHeaders(sessionToken),
+      { headers: buildHeaders(sessionToken) },
     );
 
-    if (!response.ok) handleErrorResponse(response);
+    if (!response.ok) await handleErrorResponse(response);
 
     const data = await response.json() as {
       user?: {
@@ -229,8 +274,8 @@ async function fetchFollowingPage(
   url.searchParams.set('count', '200');
   if (maxId) url.searchParams.set('max_id', maxId);
 
-  const response = await fetchWithTimeout(url.toString(), buildHeaders(sessionToken));
-  if (!response.ok) handleErrorResponse(response);
+  const response = await fetchWithTimeout(url.toString(), { headers: buildHeaders(sessionToken) });
+  if (!response.ok) await handleErrorResponse(response);
 
   const data = await response.json() as {
     users?: RawUserEdge[];
@@ -254,8 +299,8 @@ async function fetchFollowersPage(
   url.searchParams.set('count', '200');
   if (maxId) url.searchParams.set('max_id', maxId);
 
-  const response = await fetchWithTimeout(url.toString(), buildHeaders(sessionToken));
-  if (!response.ok) handleErrorResponse(response);
+  const response = await fetchWithTimeout(url.toString(), { headers: buildHeaders(sessionToken) });
+  if (!response.ok) await handleErrorResponse(response);
 
   const data = await response.json() as {
     users?: RawUserEdge[];
@@ -339,12 +384,19 @@ export async function unfollowUser(
     const response = await fetchWithTimeout(
       `${INSTAGRAM_API_BASE}/friendships/destroy/${targetInstagramUserId}/`,
       {
-        ...buildHeaders(sessionToken),
-        'Content-Type': 'application/x-www-form-urlencoded',
+        method: 'POST',
+        headers: {
+          ...buildHeaders(sessionToken),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          user_id: targetInstagramUserId,
+          container_module: 'profile',
+        }).toString(),
       },
     );
 
-    if (!response.ok) handleErrorResponse(response);
+    if (!response.ok) await handleErrorResponse(response);
     logger.info({ ownerInstagramUserId, targetInstagramUserId }, 'Unfollow request sent');
   } catch (err) {
     wrapNetworkError(err);
@@ -364,10 +416,10 @@ export async function getUserInfo(
   try {
     const response = await fetchWithTimeout(
       `${INSTAGRAM_API_BASE}/users/${targetInstagramUserId}/info/`,
-      buildHeaders(sessionToken),
+      { headers: buildHeaders(sessionToken) },
     );
 
-    if (!response.ok) handleErrorResponse(response);
+    if (!response.ok) await handleErrorResponse(response);
 
     const data = await response.json() as {
       user?: {

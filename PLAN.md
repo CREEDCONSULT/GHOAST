@@ -99,14 +99,15 @@ Follow these rules throughout implementation:
 Use these documents in this order:
 
 1. `PLAN.md`: execution order and gates.
-2. `PROJECT-PRD.md`: product requirements and launch blockers.
-3. `BRAND-POSITIONING.md`: positioning, trust language, messaging.
-4. `REQUIREMENTS.md`: feature acceptance criteria.
-5. `GHOAST-TECHNICAL-REFERENCE.md`: deeper technical details.
-6. `TECH-STACK.md`: architecture and deployment choices.
-7. `DESIGN-NOTES.md`: visual system.
-8. `PLATFORM-COMPLIANCE.md`: mobile/store compliance guidance.
-9. `BUILD-LOG.md`: historical build log only, not current truth.
+2. `TRIAL-READINESS-PLAN.md`: current execution gate for a controlled Instagram trial.
+3. `PROJECT-PRD.md`: product requirements and launch blockers.
+4. `BRAND-POSITIONING.md`: positioning, trust language, messaging.
+5. `REQUIREMENTS.md`: feature acceptance criteria.
+6. `GHOAST-TECHNICAL-REFERENCE.md`: deeper technical details.
+7. `TECH-STACK.md`: architecture and deployment choices.
+8. `DESIGN-NOTES.md`: visual system.
+9. `PLATFORM-COMPLIANCE.md`: mobile/store compliance guidance.
+10. `BUILD-LOG.md`: historical build log only, not current truth.
 
 ## 5. Operating Workflow
 

@@ -25,6 +25,7 @@ import { redis } from '../lib/redis.js';
 import { decrypt } from '../lib/encryption.js';
 import { logger } from '../lib/logger.js';
 import { unfollowUser, SessionExpiredError, InstagramRateLimitError } from '../lib/instagram.js';
+import { assertInstagramActionsEnabled } from '../config/action-policy.js';
 import { consumeCredit } from '../services/billing.service.js';
 import { QUEUE_CONFIG, randomDelay, randomSessionPauseTrigger } from '../config/queue.js';
 
@@ -98,6 +99,8 @@ export function createUnfollowWorker(): Worker<UnfollowJobData, UnfollowJobResul
 async function processUnfollowJob(
   job: Job<UnfollowJobData, UnfollowJobResult>,
 ): Promise<UnfollowJobResult> {
+  await assertInstagramActionsEnabled(job.data.accountId);
+
   const { accountId, ghostId, userId } = job.data;
 
   // 1. Fetch account + session token

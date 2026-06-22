@@ -33,6 +33,7 @@ import {
   DailyCapReachedError,
   SessionExpiredError,
   InstagramRateLimitError,
+  InstagramActionsDisabledError,
 } from '../services/ghosts.service.js';
 import { logger } from '../lib/logger.js';
 
@@ -152,6 +153,13 @@ export async function ghostRoutes(app: FastifyInstance): Promise<void> {
         }
         if (err instanceof InstagramRateLimitError) {
           return reply.status(429).send({ error: 'Too Many Requests', code: 'INSTAGRAM_RATE_LIMIT', message: err.message });
+        }
+        if (err instanceof InstagramActionsDisabledError) {
+          return reply.status(503).send({
+            error: 'Service Unavailable',
+            code: err.code,
+            message: err.message,
+          });
         }
         logger.error({ accountId, ghostId, userId, err }, 'Failed to unfollow ghost');
         return reply.status(500).send({ error: 'Internal Server Error' });

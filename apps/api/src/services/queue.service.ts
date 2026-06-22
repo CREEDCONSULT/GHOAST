@@ -12,13 +12,18 @@
  * - Daily cap checked against current count + requested count
  */
 
-import { Queue, Worker } from 'bullmq';
+import { Queue } from 'bullmq';
 import { prisma } from '@ghoast/db';
 import { redis } from '../lib/redis.js';
 import { logger } from '../lib/logger.js';
 import { QUEUE_CONFIG } from '../config/queue.js';
 import { InsufficientCreditsError } from './billing.service.js';
 import type { UnfollowJobData } from '../workers/unfollow.worker.js';
+import {
+  assertInstagramActionsEnabled,
+  getTrialQueueSizeLimit,
+  InstagramActionsDisabledError,
+} from '../config/action-policy.js';
 
 // ── Error types ───────────────────────────────────────────────────────────────
 
@@ -57,6 +62,15 @@ export class QueueNotFoundError extends Error {
   }
 }
 
+export class QueueTrialLimitExceededError extends Error {
+  constructor(limit: number) {
+    super(`The controlled trial queue is limited to ${limit} ghosts.`);
+    this.name = 'QueueTrialLimitExceededError';
+  }
+}
+
+export { InstagramActionsDisabledError };
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface StartQueueResult {
@@ -87,9 +101,6 @@ export function getUnfollowQueue(): Queue<UnfollowJobData> {
   return _unfollowQueue;
 }
 
-// Track active workers per account (in-process; reset on server restart)
-const activeWorkers = new Map<string, Worker<UnfollowJobData>>();
-
 // ── Service functions ─────────────────────────────────────────────────────────
 
 /**
@@ -102,6 +113,13 @@ export async function startQueue(
   accountId: string,
   ghostIds: string[],
 ): Promise<StartQueueResult> {
+  await assertInstagramActionsEnabled(accountId);
+
+  const trialQueueLimit = getTrialQueueSizeLimit();
+  if (ghostIds.length > trialQueueLimit) {
+    throw new QueueTrialLimitExceededError(trialQueueLimit);
+  }
+
   // 1. Verify account ownership
   const account = await prisma.instagramAccount.findFirst({
     where: { id: accountId, userId },
@@ -174,14 +192,7 @@ export async function startQueue(
 
   await queue.addBulk(jobs);
 
-  // 7. Start worker for this account if not already running
-  if (!activeWorkers.has(accountId)) {
-    // Dynamically import to avoid circular dependency
-    const { createUnfollowWorker } = await import('../workers/unfollow.worker.js');
-    const worker = createUnfollowWorker();
-    activeWorkers.set(accountId, worker);
-    logger.info({ accountId, jobCount: queueableIds.length }, 'Unfollow worker started');
-  }
+  // 7. The dedicated worker service owns all job processing.
 
   // Estimate completion: avg delay per job
   const avgDelayMs =
@@ -221,13 +232,6 @@ export async function cancelQueue(userId: string, accountId: string): Promise<vo
   const accountJobs = waitingJobs.filter((j) => j.data.accountId === accountId);
 
   await Promise.all(accountJobs.map((j) => j.remove()));
-
-  // Stop the worker for this account
-  const worker = activeWorkers.get(accountId);
-  if (worker) {
-    await worker.close();
-    activeWorkers.delete(accountId);
-  }
 
   // Mark queue session as cancelled
   const today = new Date().toISOString().slice(0, 10);

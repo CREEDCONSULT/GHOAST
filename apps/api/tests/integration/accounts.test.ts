@@ -145,6 +145,11 @@ const MOCK_ACCOUNT = {
 };
 
 const VALID_TOKEN = 'a'.repeat(40); // 40+ char alphanumeric token
+const VALID_CONNECT_PAYLOAD = {
+  sessionToken: VALID_TOKEN,
+  disclosureAccepted: true,
+  disclosureVersion: '2026-06-22',
+};
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -186,7 +191,7 @@ describe('Account routes — /api/v1/accounts', () => {
       const res = await app.inject({
         method: 'POST',
         url: '/api/v1/accounts/connect',
-        payload: { sessionToken: VALID_TOKEN },
+        payload: VALID_CONNECT_PAYLOAD,
       });
       expect(res.statusCode).toBe(401);
     });
@@ -221,6 +226,17 @@ describe('Account routes — /api/v1/accounts', () => {
       expect(connectAccount).not.toHaveBeenCalled();
     });
 
+    it('returns 400 when the connection disclosure is not accepted', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/accounts/connect',
+        headers: authHeaders,
+        payload: { sessionToken: VALID_TOKEN },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(connectAccount).not.toHaveBeenCalled();
+    });
+
     it('returns 400 when sessionToken is too short (< 20 chars)', async () => {
       const res = await app.inject({
         method: 'POST',
@@ -248,7 +264,7 @@ describe('Account routes — /api/v1/accounts', () => {
         method: 'POST',
         url: '/api/v1/accounts/connect',
         headers: authHeaders,
-        payload: { sessionToken: VALID_TOKEN },
+        payload: VALID_CONNECT_PAYLOAD,
       });
 
       expect(res.statusCode).toBe(201);
@@ -258,7 +274,7 @@ describe('Account routes — /api/v1/accounts', () => {
       // SECURITY: session token fields must NOT be in response
       expect(body.account).not.toHaveProperty('sessionTokenEncrypted');
       expect(body.account).not.toHaveProperty('sessionTokenIv');
-      expect(connectAccount).toHaveBeenCalledWith(TEST_USER_ID, VALID_TOKEN);
+      expect(connectAccount).toHaveBeenCalledWith(TEST_USER_ID, VALID_TOKEN, '2026-06-22');
     });
 
     it('returns 401 when Instagram session is expired/invalid', async () => {
@@ -268,7 +284,7 @@ describe('Account routes — /api/v1/accounts', () => {
         method: 'POST',
         url: '/api/v1/accounts/connect',
         headers: authHeaders,
-        payload: { sessionToken: VALID_TOKEN },
+        payload: VALID_CONNECT_PAYLOAD,
       });
 
       expect(res.statusCode).toBe(401);
@@ -283,7 +299,7 @@ describe('Account routes — /api/v1/accounts', () => {
         method: 'POST',
         url: '/api/v1/accounts/connect',
         headers: authHeaders,
-        payload: { sessionToken: VALID_TOKEN },
+        payload: VALID_CONNECT_PAYLOAD,
       });
 
       expect(res.statusCode).toBe(429);
@@ -298,7 +314,7 @@ describe('Account routes — /api/v1/accounts', () => {
         method: 'POST',
         url: '/api/v1/accounts/connect',
         headers: authHeaders,
-        payload: { sessionToken: VALID_TOKEN },
+        payload: VALID_CONNECT_PAYLOAD,
       });
 
       expect(res.statusCode).toBe(409);
@@ -311,7 +327,7 @@ describe('Account routes — /api/v1/accounts', () => {
         method: 'POST',
         url: '/api/v1/accounts/connect',
         headers: authHeaders,
-        payload: { sessionToken: VALID_TOKEN },
+        payload: VALID_CONNECT_PAYLOAD,
       });
 
       expect(res.statusCode).toBe(403);
@@ -327,7 +343,7 @@ describe('Account routes — /api/v1/accounts', () => {
         method: 'POST',
         url: '/api/v1/accounts/connect',
         headers: authHeaders,
-        payload: { sessionToken: VALID_TOKEN },
+        payload: VALID_CONNECT_PAYLOAD,
       });
 
       expect(res.statusCode).toBe(500);

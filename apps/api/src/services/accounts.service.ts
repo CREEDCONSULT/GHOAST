@@ -95,6 +95,7 @@ const safeAccountSelect = {
 export async function connectAccount(
   userId: string,
   sessionToken: string,
+  consentVersion: string,
 ): Promise<SafeAccount> {
   // Step 1: Validate token with Instagram API and get user info
   // SECURITY: sessionToken is never passed to logger
@@ -141,6 +142,8 @@ export async function connectAccount(
       profilePicUrl: userInfo.profilePicUrl,
       followersCount: userInfo.followersCount,
       followingCount: userInfo.followingCount,
+      consentVersion,
+      consentAcceptedAt: new Date(),
     },
     create: {
       userId,
@@ -152,6 +155,8 @@ export async function connectAccount(
       profilePicUrl: userInfo.profilePicUrl,
       followersCount: userInfo.followersCount,
       followingCount: userInfo.followingCount,
+      consentVersion,
+      consentAcceptedAt: new Date(),
     },
     select: safeAccountSelect,
   });

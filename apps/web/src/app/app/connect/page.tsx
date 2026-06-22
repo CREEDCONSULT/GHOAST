@@ -12,6 +12,7 @@ export default function ConnectPage() {
   const { toast } = useToast();
 
   const [sessionToken, setSessionToken] = useState('');
+  const [disclosureAccepted, setDisclosureAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,6 +21,7 @@ export default function ConnectPage() {
     const token = sessionToken.trim();
     if (!token) { setError('Session token is required'); return; }
     if (token.length < 10) { setError('This doesn\'t look like a valid session token'); return; }
+    if (!disclosureAccepted) { setError('Accept the connection disclosure to continue'); return; }
     setError('');
     setLoading(true);
 
@@ -153,9 +155,35 @@ export default function ConnectPage() {
           Ghoast does not store your Instagram password.
         </p>
 
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 10,
+            fontSize: 13,
+            color: 'var(--muted)',
+            lineHeight: 1.55,
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={disclosureAccepted}
+            onChange={(e) => setDisclosureAccepted(e.target.checked)}
+            style={{ marginTop: 3, width: 16, height: 16, accentColor: 'var(--violet)' }}
+          />
+          <span>
+            I authorize Ghoast to use this session to read my Instagram relationship data and,
+            only when I explicitly request it, submit unfollow actions. I understand this is an
+            unofficial integration and may be limited by Instagram. See the{' '}
+            <a href="/privacy" style={{ color: 'var(--cyan)' }}>Privacy Policy</a> and{' '}
+            <a href="/terms" style={{ color: 'var(--cyan)' }}>Terms</a>.
+          </span>
+        </label>
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !disclosureAccepted}
           className="btn btn-primary"
           style={{ width: '100%', justifyContent: 'center' }}
         >

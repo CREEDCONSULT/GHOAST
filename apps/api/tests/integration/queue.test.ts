@@ -75,6 +75,13 @@ jest.mock('../../src/services/queue.service.js', () => {
   class QueueNotFoundError extends Error {
     constructor() { super('Queue not found'); this.name = 'QueueNotFoundError'; }
   }
+  class QueueTrialLimitExceededError extends Error {
+    constructor() { super('Trial queue limit exceeded'); this.name = 'QueueTrialLimitExceededError'; }
+  }
+  class InstagramActionsDisabledError extends Error {
+    readonly code = 'INSTAGRAM_ACTIONS_DISABLED';
+    constructor() { super('Instagram actions are temporarily disabled.'); this.name = 'InstagramActionsDisabledError'; }
+  }
   class InsufficientCreditsError extends Error {
     constructor() { super('Insufficient credits'); this.name = 'InsufficientCreditsError'; }
   }
@@ -92,6 +99,8 @@ jest.mock('../../src/services/queue.service.js', () => {
     QueueDailyCapExceededError,
     QueueAccessDeniedError,
     QueueNotFoundError,
+    QueueTrialLimitExceededError,
+    InstagramActionsDisabledError,
     InsufficientCreditsError,
   };
 });
@@ -146,6 +155,8 @@ import {
   QueueTier5RejectedError,
   QueueDailyCapExceededError,
   QueueAccessDeniedError,
+  QueueTrialLimitExceededError,
+  InstagramActionsDisabledError,
 } from '../../src/services/queue.service.js';
 import { prisma } from '@ghoast/db';
 
@@ -340,6 +351,34 @@ describe('Queue routes', () => {
       expect(body.error).toBe('Forbidden');
       expect(body.code).toBe('UPGRADE_REQUIRED');
       expect(body.upgrade_url).toBe('/pricing');
+    });
+
+    it('returns 503 when Instagram actions are disabled', async () => {
+      (startQueue as jest.Mock).mockRejectedValue(new InstagramActionsDisabledError());
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/queue/start',
+        headers: AUTH_HEADERS,
+        payload: { accountId: ACCOUNT_ID, ghostIds: GHOST_IDS },
+      });
+
+      expect(res.statusCode).toBe(503);
+      expect(res.json<{ code: string }>().code).toBe('INSTAGRAM_ACTIONS_DISABLED');
+    });
+
+    it('returns 400 when the controlled trial queue limit is exceeded', async () => {
+      (startQueue as jest.Mock).mockRejectedValue(new QueueTrialLimitExceededError(3));
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/v1/queue/start',
+        headers: AUTH_HEADERS,
+        payload: { accountId: ACCOUNT_ID, ghostIds: GHOST_IDS },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json<{ code: string }>().code).toBe('TRIAL_QUEUE_LIMIT_EXCEEDED');
     });
 
     it('returns 500 on unexpected service error', async () => {
