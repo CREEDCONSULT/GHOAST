@@ -20,7 +20,10 @@ export default function ConnectPage() {
     e.preventDefault();
     const token = sessionToken.trim();
     if (!token) { setError('Session token is required'); return; }
-    if (token.length < 10) { setError('This doesn\'t look like a valid session token'); return; }
+    if (token.length < 20) {
+      setError('This value is too short. Copy the full value of the Instagram cookie named "sessionid".');
+      return;
+    }
     if (!disclosureAccepted) { setError('Accept the connection disclosure to continue'); return; }
     setError('');
     setLoading(true);
@@ -98,7 +101,7 @@ export default function ConnectPage() {
         {[
           'Open Instagram in your browser and sign in.',
           'Open DevTools (F12), go to Application → Cookies → instagram.com.',
-          'Find the cookie named "sessionid" and copy its value.',
+          'Find the cookie whose Name is exactly "sessionid" and copy its complete Value (not the cookie name, domain, or an ID from the page).',
           'Paste it below.',
         ].map((step, i) => (
           <div
@@ -141,7 +144,7 @@ export default function ConnectPage() {
         <Input
           label="Instagram Session Token"
           type="password"
-          placeholder="Paste your sessionid cookie value here"
+          placeholder="Paste the complete sessionid Value"
           value={sessionToken}
           onChange={(e) => setSessionToken(e.target.value)}
           error={error}
