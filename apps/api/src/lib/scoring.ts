@@ -138,7 +138,7 @@ export function scoreGhost(input: GhostScoreInput): GhostScore {
   const scoreFollowRecency_ = scoreFollowRecency(input, now);
   const scoreReciprocity_ = scoreReciprocity(input);
 
-  const priorityScore = Math.min(
+  let priorityScore = Math.min(
     100,
     scoreEngagement +
       scoreEngagementRecency_ +
@@ -146,6 +146,14 @@ export function scoreGhost(input: GhostScoreInput): GhostScore {
       scoreFollowRecency_ +
       scoreReciprocity_,
   );
+
+  // Grace period: an account followed very recently hasn't had a fair chance to follow
+  // back yet, so we never label it "Safe to Cut" (Tier 1). Floor it into "Your Call"
+  // (Tier 3) so it stays visible but isn't recommended for removal prematurely.
+  const GRACE_DAYS = 14;
+  if (input.followedAt && daysBetween(now, input.followedAt) <= GRACE_DAYS) {
+    priorityScore = Math.max(priorityScore, 41);
+  }
 
   return {
     priorityScore,

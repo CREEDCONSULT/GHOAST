@@ -77,6 +77,14 @@ describe('scoreGhost — behavior', () => {
     expect(s.tier).toBeGreaterThanOrEqual(4);
   });
 
+  it('never labels a very recently-followed account "Safe to Cut" (grace period)', () => {
+    const justFollowed = scoreGhost(input({ followedAt: daysAgo(3) }));
+    expect(justFollowed.tier).toBeGreaterThanOrEqual(3);
+    // an account followed just outside the grace window can still be Tier 1
+    const pastGrace = scoreGhost(input({ followedAt: daysAgo(400) }));
+    expect(pastGrace.tier).toBe(1);
+  });
+
   it('a recent follow gets benefit of the doubt vs an old one', () => {
     const recent = scoreGhost(input({ followedAt: daysAgo(7) }));
     const old = scoreGhost(input({ followedAt: daysAgo(500) }));
