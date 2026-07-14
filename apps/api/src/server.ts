@@ -3,22 +3,18 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyRateLimit from '@fastify/rate-limit';
+import fastifyMultipart from '@fastify/multipart';
 import { logger } from './lib/logger.js';
 import { redis } from './lib/redis.js';
 import { prisma } from '@ghoast/db';
 import { authRoutes } from './routes/auth.js';
 import { accountRoutes } from './routes/accounts.js';
-import { scanRoutes } from './routes/scan.js';
+import { importRoutes } from './routes/import.js';
 import { ghostRoutes } from './routes/ghosts.js';
 import { billingRoutes, stripeWebhookRoute } from './routes/billing.js';
-import { queueRoutes } from './routes/queue.js';
 import { snapshotRoutes } from './routes/snapshots.js';
 import { whitelistRoutes } from './routes/whitelist.js';
 import { userRoutes } from './routes/users.js';
-import {
-  areInstagramActionsConfigured,
-  isInstagramEmergencyStopped,
-} from './config/action-policy.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -40,6 +36,12 @@ export async function buildServer() {
 
   await app.register(fastifyCookie, {
     secret: process.env.JWT_SECRET ?? 'dev-secret',
+  });
+
+  // File uploads (Instagram data export). Limits guard memory; the route also
+  // stream-counts bytes and rejects oversized uploads with a friendly message.
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: 60 * 1024 * 1024, files: 1, fields: 5 },
   });
 
   // ── Rate limiting ──────────────────────────────────────────────────────────
@@ -64,11 +66,10 @@ export async function buildServer() {
   await app.register(async (v1) => {
     await v1.register(authRoutes, { prefix: '/auth' });
     await v1.register(accountRoutes, { prefix: '/accounts' });
-    await v1.register(scanRoutes, { prefix: '/accounts' });
+    await v1.register(importRoutes, { prefix: '/accounts' });
     await v1.register(ghostRoutes, { prefix: '/accounts' });
     await v1.register(billingRoutes, { prefix: '/billing' });
     await v1.register(stripeWebhookRoute);
-    await v1.register(queueRoutes, { prefix: '/queue' });
     await v1.register(snapshotRoutes, { prefix: '/accounts' });
     await v1.register(whitelistRoutes, { prefix: '/accounts' });
     await v1.register(userRoutes, { prefix: '/users' });
@@ -81,17 +82,11 @@ export async function buildServer() {
           .then(() => 'ok' as const)
           .catch(() => 'unavailable' as const),
       ]);
-      const emergencyStopped =
-        cache === 'ok' ? await isInstagramEmergencyStopped().catch(() => true) : true;
 
       return {
         status: database === 'ok' && cache === 'ok' ? 'ok' : 'degraded',
         timestamp: new Date().toISOString(),
         dependencies: { database, cache },
-        instagramActions: {
-          configured: areInstagramActionsConfigured(),
-          emergencyStopped,
-        },
       };
     });
   }, { prefix: '/api/v1' });

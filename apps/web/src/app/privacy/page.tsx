@@ -6,15 +6,17 @@ export default function PrivacyPage() {
       <LegalSection title="What Ghoast collects">
         <p>
           We collect your email address, account and billing records, product activity, and the
-          Instagram session token you provide. The token is encrypted before storage. We use it
-          to retrieve relationship data and to submit an unfollow only after you request one.
+          contents of the Instagram data export you choose to upload. We never receive your
+          Instagram password or session, we never sign in to your Instagram account, and we never
+          take any action on Instagram on your behalf.
         </p>
       </LegalSection>
       <LegalSection title="Instagram data">
         <p>
-          Ghoast may store connected account identifiers, handles, profile metadata, follower and
-          following relationships, scan results, action history, and safety status. We do not ask
-          for or store your Instagram password.
+          From your uploaded export, Ghoast stores the handles you follow and who follows you back,
+          your Close Friends list, and your own likes and comments — used only to build and rank
+          your ghost list. We do not ask for or store your Instagram password, and we do not access
+          Instagram’s API with your credentials.
         </p>
       </LegalSection>
       <LegalSection title="How data is used">

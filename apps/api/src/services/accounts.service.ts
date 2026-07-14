@@ -9,12 +9,7 @@
  */
 
 import { prisma } from '@ghoast/db';
-import { encrypt } from '../lib/encryption.js';
-import { fetchInstagramUserInfo } from '../lib/instagram.js';
 import { logger } from '../lib/logger.js';
-import type { InstagramUserInfo } from '../lib/instagram.js';
-
-export { SessionExpiredError, InstagramRateLimitError } from '../lib/instagram.js';
 
 // ── Account limits by tier ────────────────────────────────────────────────────
 
@@ -84,86 +79,9 @@ const safeAccountSelect = {
   createdAt: true,
 } as const;
 
-// ── Connect ───────────────────────────────────────────────────────────────────
-
-/**
- * Connects an Instagram account to the given Ghoast user.
- * - Validates the session token by calling Instagram's API
- * - Encrypts the token before storing
- * - Upserts the account record (reconnect updates the token)
- */
-export async function connectAccount(
-  userId: string,
-  sessionToken: string,
-  consentVersion: string,
-): Promise<SafeAccount> {
-  // Step 1: Validate token with Instagram API and get user info
-  // SECURITY: sessionToken is never passed to logger
-  const userInfo: InstagramUserInfo = await fetchInstagramUserInfo(sessionToken);
-
-  // Step 1.5: Enforce per-tier account limit (skip for reconnections)
-  const existingAccount = await prisma.instagramAccount.findUnique({
-    where: {
-      userId_instagramUserId: {
-        userId,
-        instagramUserId: userInfo.instagramUserId,
-      },
-    },
-    select: { id: true },
-  });
-
-  if (!existingAccount) {
-    // New account — check limit
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { tier: true },
-    });
-    const limit = ACCOUNT_LIMITS[user?.tier ?? 'FREE'] ?? 1;
-    const count = await prisma.instagramAccount.count({ where: { userId } });
-    if (count >= limit) throw new AccountLimitReachedError(limit);
-  }
-
-  // Step 2: Encrypt session token before storage
-  const { encrypted, iv } = encrypt(sessionToken);
-
-  // Step 3: Upsert account (supports reconnection with fresh token)
-  const account = await prisma.instagramAccount.upsert({
-    where: {
-      userId_instagramUserId: {
-        userId,
-        instagramUserId: userInfo.instagramUserId,
-      },
-    },
-    update: {
-      sessionTokenEncrypted: encrypted,
-      sessionTokenIv: iv,
-      handle: userInfo.handle,
-      displayName: userInfo.displayName,
-      profilePicUrl: userInfo.profilePicUrl,
-      followersCount: userInfo.followersCount,
-      followingCount: userInfo.followingCount,
-      consentVersion,
-      consentAcceptedAt: new Date(),
-    },
-    create: {
-      userId,
-      instagramUserId: userInfo.instagramUserId,
-      sessionTokenEncrypted: encrypted,
-      sessionTokenIv: iv,
-      handle: userInfo.handle,
-      displayName: userInfo.displayName,
-      profilePicUrl: userInfo.profilePicUrl,
-      followersCount: userInfo.followersCount,
-      followingCount: userInfo.followingCount,
-      consentVersion,
-      consentAcceptedAt: new Date(),
-    },
-    select: safeAccountSelect,
-  });
-
-  logger.info({ userId, accountId: account.id, handle: userInfo.handle }, 'Instagram account connected');
-
-  return account;
+/** Per-tier connected-account limit, enforced by the import flow. */
+export function accountLimitForTier(tier: string | undefined): number {
+  return ACCOUNT_LIMITS[tier ?? 'FREE'] ?? 1;
 }
 
 // ── Disconnect ────────────────────────────────────────────────────────────────

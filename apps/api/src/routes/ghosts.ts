@@ -23,17 +23,16 @@ import {
 import { requireAuth } from '../middleware/requireAuth.js';
 import {
   listGhosts,
-  unfollowGhost,
+  markGhostUnfollowed,
+  unmarkGhostUnfollowed,
   getAccountStats,
   getDailyUnfollowCount,
+  FREE_DAILY_CLEANUP_CAP,
   GhostAccountNotFoundError,
   GhostNotFoundError,
   GhostAlreadyRemovedError,
   Tier5ProtectedError,
   DailyCapReachedError,
-  SessionExpiredError,
-  InstagramRateLimitError,
-  InstagramActionsDisabledError,
 } from '../services/ghosts.service.js';
 import { logger } from '../lib/logger.js';
 
@@ -45,6 +44,8 @@ function toGhostResponse(
     accountType: ghost.accountType as GhostResponse['accountType'],
     tier: ghost.tier as GhostResponse['tier'],
     lastPostDate: ghost.lastPostDate?.toISOString() ?? null,
+    followedAt: ghost.followedAt?.toISOString() ?? null,
+    lastEngagedAt: ghost.lastEngagedAt?.toISOString() ?? null,
     removedAt: ghost.removedAt?.toISOString() ?? null,
     firstSeenAt: ghost.firstSeenAt.toISOString(),
   };
@@ -58,7 +59,7 @@ const listGhostsQuery = z.object({
     .optional()
     .transform((v) => (v ? parseInt(v, 10) : undefined))
     .refine((v) => v === undefined || (v >= 1 && v <= 5), { message: 'tier must be 1–5' }),
-  sort: z.enum(['score', 'followers', 'last_post']).optional(),
+  sort: z.enum(['score', 'follow_date', 'engagement']).optional(),
   search: z.string().max(100).optional(),
   page: z
     .string()
@@ -102,7 +103,7 @@ export async function ghostRoutes(app: FastifyInstance): Promise<void> {
             pages: result.pages,
           },
           dailyUnfollowCount: dailyCount,
-          dailyUnfollowCap: 10,
+          dailyUnfollowCap: FREE_DAILY_CLEANUP_CAP,
         });
         return reply.status(200).send(response);
       } catch (err) {
@@ -116,6 +117,8 @@ export async function ghostRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ── POST /accounts/:id/ghosts/:ghostId/unfollow ────────────────────────────
+  // Records that the user manually unfollowed this ghost on Instagram. Ghoast does
+  // NOT perform any Instagram action — this only updates the cleanup checklist.
 
   app.post<{ Params: { id: string; ghostId: string } }>(
     '/:id/ghosts/:ghostId/unfollow',
@@ -125,7 +128,7 @@ export async function ghostRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.user!.id;
 
       try {
-        await unfollowGhost(userId, accountId, ghostId);
+        await markGhostUnfollowed(userId, accountId, ghostId);
         return reply.status(200).send({ success: true });
       } catch (err) {
         if (err instanceof GhostAccountNotFoundError) {
@@ -148,20 +151,33 @@ export async function ghostRoutes(app: FastifyInstance): Promise<void> {
             upgrade_url: '/pricing',
           });
         }
-        if (err instanceof SessionExpiredError) {
-          return reply.status(401).send({ error: 'Unauthorized', code: 'SESSION_EXPIRED', message: err.message });
+        logger.error({ accountId, ghostId, userId, err }, 'Failed to mark ghost unfollowed');
+        return reply.status(500).send({ error: 'Internal Server Error' });
+      }
+    },
+  );
+
+  // ── DELETE /accounts/:id/ghosts/:ghostId/unfollow ──────────────────────────
+  // Undo a cleanup mark (user made a mistake or re-followed).
+
+  app.delete<{ Params: { id: string; ghostId: string } }>(
+    '/:id/ghosts/:ghostId/unfollow',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { id: accountId, ghostId } = request.params;
+      const userId = request.user!.id;
+
+      try {
+        await unmarkGhostUnfollowed(userId, accountId, ghostId);
+        return reply.status(200).send({ success: true });
+      } catch (err) {
+        if (err instanceof GhostAccountNotFoundError) {
+          return reply.status(403).send({ error: 'Forbidden' });
         }
-        if (err instanceof InstagramRateLimitError) {
-          return reply.status(429).send({ error: 'Too Many Requests', code: 'INSTAGRAM_RATE_LIMIT', message: err.message });
+        if (err instanceof GhostNotFoundError) {
+          return reply.status(404).send({ error: 'Not Found', message: err.message });
         }
-        if (err instanceof InstagramActionsDisabledError) {
-          return reply.status(503).send({
-            error: 'Service Unavailable',
-            code: err.code,
-            message: err.message,
-          });
-        }
-        logger.error({ accountId, ghostId, userId, err }, 'Failed to unfollow ghost');
+        logger.error({ accountId, ghostId, userId, err }, 'Failed to undo ghost cleanup mark');
         return reply.status(500).send({ error: 'Internal Server Error' });
       }
     },

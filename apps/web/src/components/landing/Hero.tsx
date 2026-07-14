@@ -70,9 +70,9 @@ export default function Hero() {
           lineHeight: 1.6,
         }}
       >
-        Ghoast scans your Instagram following list, ranks every ghost across
-        five dimensions, and bulk-unfollows them with Instagram-safe delays.
-        Clean your list. Fix your ratio.
+        Ghoast reads your own Instagram data export, ranks every account that
+        doesn’t follow you back by how much you actually engage, and guides you
+        through cleanup. No password. No login. Fix your ratio.
       </p>
 
       {/* CTAs */}

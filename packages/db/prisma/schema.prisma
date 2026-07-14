@@ -52,10 +52,11 @@ model InstagramAccount {
   profilePicUrl         String?   @map("profile_pic_url")
   followersCount        Int       @default(0) @map("followers_count")
   followingCount        Int       @default(0) @map("following_count")
-  // Encrypted session token, written by the API with authenticated encryption
-  // NEVER return these fields in any API response
-  sessionTokenEncrypted String    @map("session_token_encrypted")
-  sessionTokenIv        String    @map("session_token_iv")
+  // Legacy: encrypted Instagram session token. The compliant build ingests the
+  // user's official data export instead of a session cookie, so these are unused
+  // and nullable. NEVER return these fields in any API response.
+  sessionTokenEncrypted String?   @map("session_token_encrypted")
+  sessionTokenIv        String?   @map("session_token_iv")
   consentVersion        String?   @map("consent_version")
   consentAcceptedAt     DateTime? @map("consent_accepted_at")
   lastScannedAt         DateTime? @map("last_scanned_at")
@@ -92,17 +93,25 @@ model Ghost {
   isVerified          Boolean   @default(false) @map("is_verified")
   accountType         AccountType @default(PERSONAL) @map("account_type")
   lastPostDate        DateTime? @map("last_post_date")
-  // Scoring — server-derived, never accepted from user input
-  priorityScore       Int       @map("priority_score")        // 0–100
-  tier                Int       @map("tier")                  // 1–5
-  scoreAccountType    Int       @default(0) @map("score_account_type")   // 0–20
-  scoreRatio          Int       @default(0) @map("score_ratio")           // 0–20
-  scoreEngagement     Int       @default(0) @map("score_engagement")     // 0–20
-  scoreSizeBand       Int       @default(0) @map("score_size_band")       // 0–20
-  scorePostRecency    Int       @default(0) @map("score_post_recency")   // 0–20
+  // When the Ghoast user followed this account (from the export timestamp)
+  followedAt          DateTime? @map("followed_at")
+  lastEngagedAt       DateTime? @map("last_engaged_at")
+  // Compliant engagement signals sourced from the user's own export
+  isCloseFriend       Boolean   @default(false) @map("is_close_friend")
+  likesGiven          Int       @default(0) @map("likes_given")
+  commentsGiven       Int       @default(0) @map("comments_given")
+  // Compliant scoring — all server-derived, never accepted from user input.
+  // Higher priorityScore = stronger reason to KEEP (matches tier colors: 1 cut → 5 keep).
+  priorityScore       Int       @map("priority_score")             // 0–100
+  tier                Int       @map("tier")                       // 1–5
+  scoreEngagement     Int       @default(0) @map("score_engagement")            // 0–35  likes+comments you gave them
+  scoreEngagementRecency Int    @default(0) @map("score_engagement_recency")    // 0–10  how recently you engaged
+  scoreCloseFriend    Int       @default(0) @map("score_close_friend")          // 0–25  on your close friends list
+  scoreFollowRecency  Int       @default(0) @map("score_follow_recency")        // 0–20  how recently you followed them
+  scoreReciprocity    Int       @default(0) @map("score_reciprocity")           // 0–10  reciprocity context
   engagementUnknown   Boolean   @default(false) @map("engagement_unknown")
   isWhitelisted       Boolean   @default(false) @map("is_whitelisted")
-  removedAt           DateTime? @map("removed_at")             // set when unfollowed
+  removedAt           DateTime? @map("removed_at")             // set when the user marks them unfollowed
   firstSeenAt         DateTime  @default(now()) @map("first_seen_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 

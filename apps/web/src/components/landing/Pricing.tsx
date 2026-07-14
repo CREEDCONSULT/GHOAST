@@ -10,67 +10,60 @@ const PLANS = [
     price: '$0',
     period: null,
     badge: null,
-    description: 'Try Ghoast and see who ghosted you — no card required.',
+    description: 'See who ghosted you — no card required.',
     cta: 'Get started free',
     ctaHref: '/register',
     ctaPrimary: false,
     features: [
       '1 Instagram account',
-      'Full ghost scan',
+      'Full ghost analysis',
       'Tier scoring (all 5 tiers)',
-      '10 manual unfollows / day',
-      'No bulk queue',
+      'Track 10 cleanups / day',
     ],
-    missing: ['Bulk unfollow queue', 'Ghost whitelist', 'Priority scoring'],
+    missing: ['Unlimited cleanup tracking', 'Follower-trend history', 'Ghost whitelist'],
   },
   {
     name: 'Pro',
     price: '$9.99',
     period: '/month',
     badge: null,
-    description: 'The full bulk unfollow engine. Clean your ratio fast.',
+    description: 'The full ghost list, guided cleanup, and trends.',
     cta: 'Start Pro',
     ctaHref: '/register?plan=pro',
     ctaPrimary: false,
     features: [
       '1 Instagram account',
-      'Full ghost scan',
+      'Full ghost analysis',
       'Tier scoring (all 5 tiers)',
-      'Bulk unfollow queue',
-      '150 unfollows / day',
-      'Rate-limit protection',
-      'Queue safety delays',
+      'Unlimited cleanup tracking',
+      'Guided one-tap cleanup',
+      'Follower-trend history',
+      'Engagement-based scoring',
     ],
-    missing: ['Ghost whitelist', 'Priority queue (shorter delays)', '3 Instagram accounts'],
+    missing: ['Ghost whitelist', '3 Instagram accounts'],
   },
   {
     name: 'Pro+',
     price: '$24.99',
     period: '/month',
     badge: 'Most popular',
-    description: 'Maximum ratio. Multiple accounts. Full control.',
+    description: 'Multiple accounts and full control.',
     cta: 'Start Pro+',
     ctaHref: '/register?plan=proplus',
     ctaPrimary: true,
     features: [
       '3 Instagram accounts',
-      'Full ghost scan',
+      'Full ghost analysis',
       'Tier scoring (all 5 tiers)',
-      'Bulk unfollow queue',
-      '150 unfollows / day',
-      'Rate-limit protection',
-      'Queue safety delays',
+      'Unlimited cleanup tracking',
+      'Guided one-tap cleanup',
+      'Follower-trend history',
+      'Engagement-based scoring',
       'Ghost whitelist (500 per account)',
-      'Priority queue processing',
+      'Priority support',
     ],
     missing: [],
   },
-];
-
-const CREDIT_PACKS = [
-  { credits: '100',   price: '$2.99',  saves: null },
-  { credits: '500',   price: '$9.99',  saves: 'Save 33%' },
-  { credits: '1,500', price: '$19.99', saves: 'Save 55%' },
 ];
 
 export default function Pricing() {
@@ -121,7 +114,7 @@ export default function Pricing() {
               margin: '16px auto 0',
             }}
           >
-            No contracts. Cancel anytime. Credits never expire.
+            No contracts. Cancel anytime.
           </p>
         </div>
 
@@ -255,106 +248,11 @@ export default function Pricing() {
           ))}
         </div>
 
-        {/* Credit packs */}
-        <div
-          style={{
-            background: 'var(--slate2)',
-            border: '1px solid rgba(123,79,255,.15)',
-            borderRadius: 20,
-            padding: '36px 40px',
-          }}
-        >
-          <div style={{ marginBottom: 24 }}>
-            <h3
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: 'var(--ghost-text)',
-                letterSpacing: '-.3px',
-                marginBottom: 6,
-              }}
-            >
-              Pay-as-you-go credits
-            </h3>
-            <p style={{ fontSize: 14, color: 'var(--muted)' }}>
-              No subscription needed. Credits never expire. 1 credit = 1 ghost removed.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 16,
-            }}
-            className="credits-grid"
-          >
-            {CREDIT_PACKS.map((pack) => (
-              <a
-                key={pack.credits}
-                href="/register?plan=credits"
-                style={{
-                  display: 'block',
-                  background: 'var(--slate)',
-                  border: '1px solid rgba(123,79,255,.2)',
-                  borderRadius: 14,
-                  padding: '20px 24px',
-                  textDecoration: 'none',
-                  position: 'relative',
-                }}
-              >
-                {pack.saves && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 12,
-                      right: 12,
-                      background: 'rgba(0,229,255,.12)',
-                      border: '1px solid rgba(0,229,255,.25)',
-                      borderRadius: 8,
-                      padding: '2px 8px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'var(--cyan)',
-                    }}
-                  >
-                    {pack.saves}
-                  </div>
-                )}
-                <div
-                  style={{
-                    fontFamily: 'var(--font-dm-mono, DM Mono, monospace)',
-                    fontSize: 28,
-                    fontWeight: 500,
-                    color: 'var(--ghost-text)',
-                    marginBottom: 4,
-                  }}
-                >
-                  {pack.credits}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>
-                  credits
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-dm-mono, DM Mono, monospace)',
-                    fontSize: 22,
-                    fontWeight: 500,
-                    color: 'var(--violet)',
-                  }}
-                >
-                  {pack.price}
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
       </div>
 
       <style>{`
         @media (max-width: 860px) {
           .pricing-grid { grid-template-columns: 1fr !important; }
-          .credits-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </section>

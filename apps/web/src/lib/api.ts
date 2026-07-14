@@ -6,8 +6,6 @@ import type {
   AccountStatsResponse,
   GhostListResponse,
   GhostResponse,
-  QueueStartResponse,
-  ScanStartResponse,
 } from '@ghoast/contracts';
 
 export function getToken(): string | null {
@@ -160,15 +158,9 @@ export const api = {
   getAccounts: () =>
     apiFetch<{ accounts: Account[] }>('/accounts'),
 
-  connectAccount: (sessionToken: string) =>
-    apiFetch<{ account: Account }>('/accounts/connect', {
-      method: 'POST',
-      body: {
-        sessionToken,
-        disclosureAccepted: true,
-        disclosureVersion: '2026-06-22',
-      },
-    }),
+  // Compliant ingestion: upload the user's official Instagram data export.
+  importExport: (handle: string, file: File, onProgress?: (pct: number) => void) =>
+    uploadImport(handle, file, onProgress),
 
   disconnectAccount: (id: string) =>
     apiFetch<void>(`/accounts/${id}`, { method: 'DELETE' }),
@@ -190,27 +182,19 @@ export const api = {
   getStats: (accountId: string) =>
     apiFetch<AccountStats>(`/accounts/${accountId}/stats`),
 
-  unfollowGhost: (accountId: string, ghostId: string) =>
+  // Mark a ghost as unfollowed after the user unfollows them on Instagram themselves.
+  markGhostUnfollowed: (accountId: string, ghostId: string) =>
     apiFetch<{ success: boolean }>(
       `/accounts/${accountId}/ghosts/${ghostId}/unfollow`,
       { method: 'POST' },
     ),
 
-  startScan: (accountId: string) =>
-    apiFetch<ScanStartResponse>(`/accounts/${accountId}/scan`, { method: 'POST' }),
-
-  // Queue
-  startQueue: (accountId: string, ghostIds: string[]) =>
-    apiFetch<QueueStartResponse>(
-      '/queue/start',
-      { method: 'POST', body: { accountId, ghostIds } },
+  // Undo a cleanup mark.
+  unmarkGhostUnfollowed: (accountId: string, ghostId: string) =>
+    apiFetch<{ success: boolean }>(
+      `/accounts/${accountId}/ghosts/${ghostId}/unfollow`,
+      { method: 'DELETE' },
     ),
-
-  pauseQueue: (accountId: string) =>
-    apiFetch<{ success: boolean }>('/queue/pause', { method: 'POST', body: { accountId } }),
-
-  cancelQueue: (accountId: string) =>
-    apiFetch<{ success: boolean }>('/queue/cancel', { method: 'POST', body: { accountId } }),
 
   // Billing
   subscribe: (tier: 'PRO' | 'PRO_PLUS', successUrl: string, cancelUrl: string) =>
@@ -229,51 +213,60 @@ export const api = {
     }),
 };
 
-// ── SSE helper ────────────────────────────────────────────────────────────────
-// EventSource doesn't support auth headers — use fetch + ReadableStream instead.
+// ── Import upload helper ──────────────────────────────────────────────────────
+// Multipart upload with progress via XHR (fetch has no upload-progress events).
 
-export type QueueEvent =
-  | { type: 'job_started'; jobId: string; ghostHandle: string }
-  | { type: 'job_completed'; jobId: string; success: boolean }
-  | { type: 'rate_limit_hit'; pauseUntil: string }
-  | { type: 'queue_completed'; totalUnfollowed: number }
-  | { type: 'queue_cancelled' }
-  | { type: 'keep_alive' };
+export interface ImportSummary {
+  accountId: string;
+  handle: string;
+  followingCount: number;
+  followersCount: number;
+  ghostCount: number;
+  newGhostCount: number;
+  engagementIncluded: boolean;
+  tierBreakdown: { tier1: number; tier2: number; tier3: number; tier4: number; tier5: number };
+}
 
-export async function* streamQueueStatus(
-  accountId: string,
-): AsyncGenerator<QueueEvent> {
-  const token = getToken();
-  const res = await fetch(`/api/v1/queue/status/${accountId}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    credentials: 'include',
-  });
+function uploadImport(
+  handle: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<ImportSummary> {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('handle', handle);
+    form.append('file', file);
 
-  if (!res.ok || !res.body) throw new ApiError('SSE stream failed', res.status);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/v1/accounts/import');
+    xhr.withCredentials = true;
+    const token = getToken();
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const messages = buffer.split('\n\n');
-      buffer = messages.pop() ?? '';
-      for (const message of messages) {
-        const line = message.trim();
-        if (line.startsWith('data: ')) {
-          try {
-            yield JSON.parse(line.slice(6)) as QueueEvent;
-          } catch { /* skip malformed */ }
-        }
-      }
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
     }
-  } finally {
-    reader.cancel();
-  }
+
+    xhr.onload = () => {
+      let json: Record<string, unknown> = {};
+      try { json = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(json as unknown as ImportSummary);
+      } else {
+        reject(
+          new ApiError(
+            (json.message as string) || (json.error as string) || 'Import failed',
+            xhr.status,
+            json.code as string | undefined,
+          ),
+        );
+      }
+    };
+    xhr.onerror = () => reject(new ApiError('Network error during upload', 0));
+    xhr.send(form);
+  });
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -304,7 +297,7 @@ export type Ghost = GhostResponse;
 
 export interface GhostListParams {
   tier?: 1 | 2 | 3 | 4 | 5;
-  sort?: 'score' | 'followers' | 'last_post';
+  sort?: 'score' | 'follow_date' | 'engagement';
   search?: string;
   page?: number;
   limit?: number;

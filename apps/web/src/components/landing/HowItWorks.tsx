@@ -6,24 +6,24 @@
 const STEPS = [
   {
     number: '01',
-    title: 'Connect your account',
+    title: 'Upload your data export',
     description:
-      'Paste your Instagram session cookie. Ghoast validates it instantly — no password, no OAuth, no Meta permissions. Your session is AES-256 encrypted before it touches our database.',
-    icon: '🔗',
+      'Download your own data from Instagram (the official "Download your information" export) and drop the file into Ghoast. No password, no login, no access to your account — ever.',
+    icon: '📦',
   },
   {
     number: '02',
-    title: 'Scan for ghosts',
+    title: 'See your ghosts, ranked',
     description:
-      'Ghoast compares your following list against your followers. Every non-follower is scored across 5 dimensions: follower count, following ratio, engagement rate, account age, and post frequency.',
+      'Ghoast compares your following against your followers and ranks everyone who doesn’t follow you back — using your own likes, comments, and Close Friends to flag who you’d actually miss.',
     icon: '👻',
   },
   {
     number: '03',
-    title: 'Ghost them back',
+    title: 'Clean up, guided',
     description:
-      'Select your ghosts, start the queue. Jobs run in the background with randomised 8–45s delays, session pauses every 10–15 unfollows, and automatic 15-min pauses on any rate limit. Your account stays safe.',
-    icon: '⚡',
+      'Work down your ghost list tier by tier. Ghoast deep-links each profile so you unfollow on Instagram in a tap, then checks them off and tracks your ratio over time.',
+    icon: '✅',
   },
 ];
 

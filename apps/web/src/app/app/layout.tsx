@@ -106,22 +106,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {tierLabel[user.tier] ?? user.tier}
           </div>
 
-          {/* Credit balance */}
-          {(user.tier === 'FREE' || user.creditBalance > 0) && (
-            <div
-              style={{
-                fontFamily: 'DM Mono',
-                fontSize: 13,
-                color: 'var(--muted)',
-              }}
-            >
-              <span style={{ color: 'var(--ghost-text)', fontWeight: 500 }}>
-                {user.creditBalance}
-              </span>{' '}
-              credits
-            </div>
-          )}
-
           {/* Upgrade CTA for free users */}
           {user.tier === 'FREE' && (
             <Link

@@ -8,14 +8,7 @@ import { useToast } from '../../../context/ToastContext';
 import StatsBar from '../../../components/dashboard/StatsBar';
 import TierFilterTabs from '../../../components/dashboard/TierFilterTabs';
 import GhostList from '../../../components/dashboard/GhostList';
-import QueuePanel from '../../../components/dashboard/QueuePanel';
-import QueueProgress from '../../../components/dashboard/QueueProgress';
 import { Spinner } from '../../../components/ui/Spinner';
-
-type QueueState =
-  | { status: 'idle' }
-  | { status: 'starting' }
-  | { status: 'running' | 'pausing' | 'cancelling'; sessionId: string; totalJobs: number; accountId: string };
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -26,23 +19,22 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [ghosts, setGhosts] = useState<Ghost[]>([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 });
-  const [dailyUnfollowCount, setDailyUnfollowCount] = useState(0);
-  const [dailyUnfollowCap, setDailyUnfollowCap] = useState(10);
+  const [dailyCleanupCount, setDailyCleanupCount] = useState(0);
+  const [dailyCleanupCap, setDailyCleanupCap] = useState(10);
 
   const [activeTier, setActiveTier] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
-
-  const [queueState, setQueueState] = useState<QueueState>({ status: 'idle' });
+  const [markingId, setMarkingId] = useState<string | null>(null);
+  const [bulkMarking, setBulkMarking] = useState(false);
 
   const [pageLoading, setPageLoading] = useState(true);
   const [ghostsLoading, setGhostsLoading] = useState(false);
 
   const userTier = (user?.tier ?? 'FREE') as UserTier;
-  const isPro = userTier === 'PRO' || userTier === 'PRO_PLUS';
+  const isFree = userTier === 'FREE';
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -63,17 +55,9 @@ export default function DashboardPage() {
 
         setGhosts(ghostsData.ghosts);
         setPagination(ghostsData.pagination);
-        setDailyUnfollowCount(ghostsData.dailyUnfollowCount);
-        setDailyUnfollowCap(ghostsData.dailyUnfollowCap);
+        setDailyCleanupCount(ghostsData.dailyUnfollowCount);
+        setDailyCleanupCap(ghostsData.dailyUnfollowCap);
         setStats(statsData);
-
-        // Auto-select Tier 1 for Pro users
-        if (isPro) {
-          const tier1Ids = ghostsData.ghosts
-            .filter((g) => g.tier === 1)
-            .map((g) => g.id);
-          setSelectedIds(new Set(tier1Ids));
-        }
       } catch {
         toast('Failed to load dashboard. Please refresh.', 'error');
       } finally {
@@ -96,9 +80,8 @@ export default function DashboardPage() {
         });
         setGhosts(data.ghosts);
         setPagination(data.pagination);
-        setDailyUnfollowCount(data.dailyUnfollowCount);
-        setDailyUnfollowCap(data.dailyUnfollowCap);
-        // Clear stale selections when filter changes
+        setDailyCleanupCount(data.dailyUnfollowCount);
+        setDailyCleanupCap(data.dailyUnfollowCap);
         setSelectedIds(new Set());
       } catch {
         toast('Failed to load ghost list.', 'error');
@@ -126,99 +109,72 @@ export default function DashboardPage() {
 
   function handleSelectAll(checked: boolean) {
     if (checked) {
-      const selectableIds = ghosts.filter((g) => g.tier !== 5).map((g) => g.id);
-      setSelectedIds(new Set(selectableIds));
+      setSelectedIds(new Set(ghosts.filter((g) => g.tier !== 5).map((g) => g.id)));
     } else {
       setSelectedIds(new Set());
     }
   }
 
-  // ── Manual unfollow (Free tier) ───────────────────────────────────────────
-  async function handleUnfollow(ghost: Ghost) {
+  function afterRemoved(ids: string[]) {
+    setGhosts((prev) => prev.filter((g) => !ids.includes(g.id)));
+    setDailyCleanupCount((n) => n + ids.length);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    if (stats) setStats({ ...stats, removedGhosts: stats.removedGhosts + ids.length });
+  }
+
+  // ── Mark a single ghost as unfollowed ─────────────────────────────────────
+  async function handleMarkDone(ghost: Ghost) {
     if (!account) return;
-    if (dailyUnfollowCount >= dailyUnfollowCap) {
-      toast('Daily unfollow limit reached. Upgrade for bulk queue.', 'warning');
+    if (isFree && dailyCleanupCount >= dailyCleanupCap) {
+      toast('Daily cleanup limit reached. Upgrade to track unlimited cleanups.', 'warning');
       return;
     }
-    setUnfollowingId(ghost.id);
+    setMarkingId(ghost.id);
     try {
-      await api.unfollowGhost(account.id, ghost.id);
-      setGhosts((prev) => prev.filter((g) => g.id !== ghost.id));
-      setDailyUnfollowCount((n) => n + 1);
-      toast(`Unfollowed @${ghost.handle}`, 'success');
-      if (stats) setStats({ ...stats, totalGhosts: stats.totalGhosts, removedGhosts: stats.removedGhosts + 1 });
+      await api.markGhostUnfollowed(account.id, ghost.id);
+      afterRemoved([ghost.id]);
+      toast(`Marked @${ghost.handle} as unfollowed`, 'success');
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
-        toast('Daily cap reached.', 'warning');
+        toast('Daily cleanup limit reached.', 'warning');
       } else {
-        toast(`Failed to unfollow @${ghost.handle}`, 'error');
+        toast(`Could not mark @${ghost.handle}`, 'error');
       }
     } finally {
-      setUnfollowingId(null);
+      setMarkingId(null);
     }
   }
 
-  // ── Queue ─────────────────────────────────────────────────────────────────
-  async function handleStartQueue() {
+  // ── Bulk mark selected as done ────────────────────────────────────────────
+  async function handleBulkMark() {
     if (!account || selectedIds.size === 0) return;
-    setQueueState({ status: 'starting' });
+    setBulkMarking(true);
+    const ids = Array.from(selectedIds);
+    const done: string[] = [];
     try {
-      const { sessionId, jobCount } = await api.startQueue(
-        account.id,
-        Array.from(selectedIds),
-      );
-      setQueueState({ status: 'running', sessionId, totalJobs: jobCount, accountId: account.id });
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
-        toast('Upgrade to Pro to use the bulk queue.', 'warning');
-      } else if (err instanceof ApiError && err.status === 429) {
-        toast('Daily queue cap reached.', 'warning');
-      } else {
-        toast('Failed to start queue.', 'error');
+      for (const id of ids) {
+        if (isFree && dailyCleanupCount + done.length >= dailyCleanupCap) {
+          toast('Daily cleanup limit reached — upgrade to continue.', 'warning');
+          break;
+        }
+        try {
+          await api.markGhostUnfollowed(account.id, id);
+          done.push(id);
+        } catch {
+          /* skip failures, keep going */
+        }
       }
-      setQueueState({ status: 'idle' });
-    }
-  }
-
-  async function handlePauseQueue() {
-    if (!account) return;
-    setQueueState((s) => s.status === 'running' ? { ...s, status: 'pausing' } : s);
-    try {
-      await api.pauseQueue(account.id);
-      toast('Queue paused.', 'info');
-    } catch {
-      toast('Could not pause queue.', 'error');
+      if (done.length > 0) {
+        afterRemoved(done);
+        toast(`Marked ${done.length} as unfollowed`, 'success');
+      }
     } finally {
-      setQueueState({ status: 'idle' });
+      setBulkMarking(false);
     }
-  }
-
-  async function handleCancelQueue() {
-    if (!account) return;
-    setQueueState((s) => s.status === 'running' ? { ...s, status: 'cancelling' } : s);
-    try {
-      await api.cancelQueue(account.id);
-    } catch {
-      toast('Could not cancel queue.', 'error');
-    } finally {
-      setQueueState({ status: 'idle' });
-    }
-  }
-
-  function handleQueueComplete(removedIds: string[]) {
-    setGhosts((prev) => prev.filter((g) => !removedIds.includes(g.id)));
-    setSelectedIds(new Set());
-    setQueueState({ status: 'idle' });
-    toast('Queue complete. Cleaned.', 'success');
-    // Refresh stats
-    if (account) {
-      api.getStats(account.id).then(setStats).catch(() => null);
-    }
-  }
-
-  function handleQueueCancelled() {
-    setQueueState({ status: 'idle' });
-    toast('Queue cancelled.', 'info');
   }
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -242,20 +198,32 @@ export default function DashboardPage() {
 
   if (!account || !stats) return null;
 
-  const selectedGhosts = ghosts.filter((g) => selectedIds.has(g.id));
-  const activeQueueState =
-    queueState.status === 'running' ||
-    queueState.status === 'pausing' ||
-    queueState.status === 'cancelling'
-      ? queueState
-      : null;
+  const selectedCount = selectedIds.size;
 
   return (
     <div>
       {/* Stats bar */}
       <StatsBar account={account} stats={stats} />
 
-      {/* Search + scan row */}
+      {/* How-to hint */}
+      <div
+        style={{
+          fontSize: 13,
+          color: 'var(--muted)',
+          background: 'var(--slate)',
+          border: '1px solid rgba(123,79,255,.14)',
+          borderRadius: 12,
+          padding: '10px 14px',
+          marginBottom: 16,
+          lineHeight: 1.5,
+        }}
+      >
+        Tap <strong>Open ↗</strong> to view a ghost on Instagram and unfollow them there, then hit{' '}
+        <strong>Done ✓</strong> to check them off. Ghoast never touches your Instagram account —
+        it just organizes the work.
+      </div>
+
+      {/* Search + re-import row */}
       <div
         style={{
           display: 'flex',
@@ -273,15 +241,8 @@ export default function DashboardPage() {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={{ maxWidth: 260, flex: 1 }}
         />
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => {
-            if (account) api.startScan(account.id)
-              .then(() => toast('Scan started. Check back in a moment.', 'info'))
-              .catch(() => toast('Could not start scan.', 'error'));
-          }}
-        >
-          ↻ Rescan
+        <button className="btn btn-ghost btn-sm" onClick={() => router.push('/app/connect')}>
+          ↻ Re-import export
         </button>
       </div>
 
@@ -299,28 +260,17 @@ export default function DashboardPage() {
         selectedIds={selectedIds}
         onSelect={handleSelect}
         onSelectAll={handleSelectAll}
-        onUnfollow={handleUnfollow}
-        unfollowingId={unfollowingId}
+        onMarkDone={handleMarkDone}
+        markingId={markingId}
         loading={ghostsLoading}
-        dailyUnfollowCount={dailyUnfollowCount}
-        dailyUnfollowCap={dailyUnfollowCap}
+        dailyCleanupCount={dailyCleanupCount}
+        dailyCleanupCap={dailyCleanupCap}
       />
 
       {/* Pagination */}
       {pagination.pages > 1 && (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 8,
-            marginTop: 16,
-          }}
-        >
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+          <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
             ← Prev
           </button>
           <span
@@ -335,46 +285,52 @@ export default function DashboardPage() {
           >
             {page} / {pagination.pages}
           </span>
-          <button
-            className="btn btn-ghost btn-sm"
-            disabled={page >= pagination.pages}
-            onClick={() => setPage((p) => p + 1)}
-          >
+          <button className="btn btn-ghost btn-sm" disabled={page >= pagination.pages} onClick={() => setPage((p) => p + 1)}>
             Next →
           </button>
         </div>
       )}
 
-      {/* Queue panel (Pro users with selections) */}
-      {isPro && !activeQueueState && (
-        <QueuePanel
-          selectedGhosts={selectedGhosts}
-          onStart={handleStartQueue}
-          onClear={() => setSelectedIds(new Set())}
-          starting={queueState.status === 'starting'}
-        />
-      )}
-
-      {/* Queue progress (active queue) */}
-      {activeQueueState && (
-        <QueueProgress
-          accountId={activeQueueState.accountId}
-          totalJobs={activeQueueState.totalJobs}
-          onComplete={handleQueueComplete}
-          onCancel={handleCancelQueue}
-          onCancelled={handleQueueCancelled}
-          onPause={handlePauseQueue}
-          isPausing={activeQueueState.status === 'pausing'}
-          isCancelling={activeQueueState.status === 'cancelling'}
-        />
+      {/* Selected-actions bar */}
+      {selectedCount > 0 && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 16,
+            marginTop: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 16px',
+            background: 'var(--slate)',
+            border: '1px solid rgba(123,79,255,.28)',
+            borderRadius: 14,
+            boxShadow: '0 8px 30px rgba(0,0,0,.35)',
+            flexWrap: 'wrap' as const,
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 600 }}>{selectedCount} selected</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            Unfollow them on Instagram first, then mark them done here.
+          </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <button className="btn btn-sm btn-ghost" onClick={() => setSelectedIds(new Set())} disabled={bulkMarking}>
+              Clear
+            </button>
+            <button className="btn btn-sm btn-primary" onClick={handleBulkMark} disabled={bulkMarking}>
+              {bulkMarking ? 'Marking…' : `Mark ${selectedCount} as done ✓`}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Upgrade gate for Free tier */}
-      {!isPro && (
+      {isFree && (
         <div className="upgrade-gate" style={{ marginTop: 20 }}>
           <span>⚡</span>
           <span>
-            <strong>Upgrade to Pro</strong> to bulk unfollow up to 150 ghosts per day with full rate-limit protection.
+            <strong>Upgrade to Pro</strong> to unlock your full ghost list, unlimited cleanup
+            tracking, and follower-trend history.
           </span>
           <a
             href="/pricing"

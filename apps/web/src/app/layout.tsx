@@ -21,7 +21,7 @@ const dmMono = DM_Mono({
 export const metadata: Metadata = {
   title: 'Ghoast — See Who Ghosted Your Count',
   description:
-    'Instagram follower intelligence tool. Find your ghosts, rank them by 5 dimensions, bulk-unfollow automatically with Instagram-safe delays.',
+    'Instagram follower intelligence from your own data export. Find who doesn’t follow you back, rank them by how much you actually engage, and clean up — no password, no login.',
   keywords: ['instagram', 'followers', 'unfollow', 'ghost', 'follower ratio', 'cleanup'],
   authors: [{ name: 'Ghoast' }],
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://ghoast.app'),
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     siteName: 'Ghoast',
     title: 'Ghoast — See Who Ghosted Your Count',
     description:
-      'Instagram follower intelligence tool. Find your ghosts, rank them, bulk-unfollow automatically.',
+      'Instagram follower intelligence from your own data export. Find who doesn’t follow you back and clean up — no password, no login.',
     url: 'https://ghoast.app',
     images: [
       {
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Ghoast — See Who Ghosted Your Count',
     description:
-      'Instagram follower intelligence tool. Find your ghosts, rank them, bulk-unfollow automatically.',
+      'Instagram follower intelligence from your own data export. Find who doesn’t follow you back and clean up — no password, no login.',
     images: ['/og-image.png'],
   },
   robots: {

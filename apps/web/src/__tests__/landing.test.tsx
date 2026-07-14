@@ -91,19 +91,19 @@ describe('HowItWorks', () => {
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
   });
 
-  it('renders step 1: Connect your account', () => {
+  it('renders step 1: Upload your data export', () => {
     render(<HowItWorks />);
-    expect(screen.getByText(/connect your account/i)).toBeTruthy();
+    expect(screen.getByText(/upload your data export/i)).toBeTruthy();
   });
 
-  it('renders step 2: Scan for ghosts', () => {
+  it('renders step 2: See your ghosts, ranked', () => {
     render(<HowItWorks />);
-    expect(screen.getByText(/scan for ghosts/i)).toBeTruthy();
+    expect(screen.getByText(/see your ghosts, ranked/i)).toBeTruthy();
   });
 
-  it('renders step 3: Ghost them back', () => {
+  it('renders step 3: Clean up, guided', () => {
     render(<HowItWorks />);
-    expect(screen.getByText(/ghost them back/i)).toBeTruthy();
+    expect(screen.getByText(/clean up, guided/i)).toBeTruthy();
   });
 });
 
@@ -197,21 +197,13 @@ describe('Pricing', () => {
   it('renders Pro plan with correct price', () => {
     render(<Pricing />);
     expect(screen.getByText('Pro')).toBeTruthy();
-    // $9.99 appears in both plan price and credits pack — assert at least one exists
-    const matches = screen.getAllByText('$9.99');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('$9.99')).toBeTruthy();
   });
 
   it('renders Pro+ plan at $24.99/month', () => {
     render(<Pricing />);
     expect(screen.getByText('Pro+')).toBeTruthy();
     expect(screen.getByText('$24.99')).toBeTruthy();
-  });
-
-  it('renders credit pack prices', () => {
-    render(<Pricing />);
-    expect(screen.getByText('$2.99')).toBeTruthy();
-    expect(screen.getByText('$19.99')).toBeTruthy();
   });
 
   it('"Start Pro" CTA links to /register?plan=pro', () => {
@@ -231,11 +223,9 @@ describe('Pricing', () => {
     expect(screen.getByText(/most popular/i)).toBeTruthy();
   });
 
-  it('shows "Credits never expire" copy (appears in header and credit packs)', () => {
+  it('shows the compliant "Cancel anytime" tagline', () => {
     render(<Pricing />);
-    // Text appears in both the tagline and credit pack description
-    const matches = screen.getAllByText(/credits never expire/i);
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/cancel anytime/i)).toBeTruthy();
   });
 });
 

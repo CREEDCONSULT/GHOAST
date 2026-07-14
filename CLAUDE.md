@@ -12,6 +12,27 @@ This is a **freemium SaaS product** targeting Instagram users 18-34 who care abo
 
 ---
 
+## ⚠️ COMPLIANCE PIVOT (2026-07-13) — READ THIS FIRST
+
+The original design (session-cookie + Instagram private API + automated bulk unfollow) is
+**retired**. It violated Instagram's Terms of Use, got users' accounts banned, and stored users'
+live session cookies. It is **not** to be rebuilt. See `COMPLIANT-REBUILD.md` for the full rationale.
+
+The product now works entirely from the user's **official Instagram "Download Your Information"
+data export**, which they upload. Ghoast parses it server-side. There is:
+
+- **NO** Instagram session cookie or password collection
+- **NO** Instagram private-API access
+- **NO** automated unfollowing — Ghoast produces a ranked ghost list and a **guided manual
+  cleanup** (deep links + progress tracking); the user unfollows on Instagram themselves
+
+These override any conflicting statement below (session-cookie connection, auto-unfollow queue,
+rate-limit evasion timings, credit-per-unfollow packs). Ghost *analysis*, tiers, scoring, and
+tracking remain — scoring is now based on export-derivable signals (your likes/comments toward an
+account, Close Friends membership, follow recency). Do not re-add private-API automation.
+
+---
+
 ## Vocabulary — Enforce These at All Times
 
 The brand owns specific vocabulary. These rules apply in **UI copy, variable names, comments, database column names, and API responses**. Never use the wrong word.

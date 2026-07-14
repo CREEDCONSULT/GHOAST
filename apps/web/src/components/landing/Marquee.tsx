@@ -5,16 +5,16 @@
  */
 
 const CHIPS = [
-  '🔍 Ghost scan in under 60 seconds',
-  '🛡️ No Instagram password required',
-  '⚡ Instagram-safe random delays',
-  '📊 5-dimension ghost scoring',
+  '🔍 Instant ghost analysis',
+  '🛡️ No password, no login, ever',
+  '📦 Uses your own Instagram export',
+  '📊 Engagement-aware ghost scoring',
   '🎯 Tier 5 ghosts auto-protected',
   '💳 No card needed to start',
   '📈 Daily ratio snapshots',
-  '🤖 Background queue — keeps running',
-  '🔒 AES-256 session encryption',
-  '📱 150 unfollows/day cap built in',
+  '✅ Guided one-tap cleanup',
+  '🔒 100% Instagram-ToS compliant',
+  '👻 Know who you’d actually miss',
 ];
 
 export default function Marquee() {
