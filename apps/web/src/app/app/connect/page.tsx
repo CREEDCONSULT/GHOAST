@@ -3,6 +3,11 @@
 import { useState, useRef, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError, type ImportSummary } from '../../../lib/api';
+import {
+  prepareExportForUpload,
+  ExportTooLargeError,
+  NoRelevantFilesError,
+} from '../../../lib/prepare-export';
 import { useToast } from '../../../context/ToastContext';
 import Input from '../../../components/ui/Input';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -20,6 +25,7 @@ export default function ConnectPage() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [statusText, setStatusText] = useState('');
 
   function pickFile(f: File | null) {
     if (!f) return;
@@ -47,24 +53,33 @@ export default function ConnectPage() {
     setLoading(true);
     setProgress(0);
     try {
-      const summary: ImportSummary = await api.importExport(h, file, setProgress);
+      // Trim the export in the browser first: extract only the small JSON files we need,
+      // so a huge full-export ZIP still uploads in seconds and never hits the size limit.
+      setStatusText('Reading your export…');
+      const prepared = await prepareExportForUpload(file);
+
+      setStatusText('Uploading…');
+      const summary: ImportSummary = await api.importExport(h, prepared, setProgress);
       toast(
         `Found ${summary.ghostCount} ghost${summary.ghostCount === 1 ? '' : 's'} not following you back`,
         'success',
       );
       router.push('/app/dashboard');
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof ExportTooLargeError || err instanceof NoRelevantFilesError) {
+        setError(err.message);
+      } else if (err instanceof ApiError) {
         if (err.code === 'BAD_EXPORT') setError(err.message);
         else if (err.code === 'INVALID_HANDLE') setError(err.message);
         else if (err.status === 413) setError(err.message);
         else if (err.status === 403) setError('Account limit reached for your plan.');
         else setError(err.message || 'Could not process that export.');
       } else {
-        toast('Something went wrong. Try again.', 'error');
+        setError('Could not read that file. Make sure it’s the .zip Instagram sent you (JSON format).');
       }
     } finally {
       setLoading(false);
+      setStatusText('');
     }
   }
 
@@ -199,6 +214,10 @@ export default function ConnectPage() {
         </div>
 
         {error && <p style={{ fontSize: 13, color: 'var(--red)', lineHeight: 1.5 }}>{error}</p>}
+
+        {loading && statusText && (
+          <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center' as const }}>{statusText}</p>
+        )}
 
         {loading && progress > 0 && progress < 100 && (
           <div style={{ height: 6, background: 'var(--specter)', borderRadius: 3, overflow: 'hidden' }}>
