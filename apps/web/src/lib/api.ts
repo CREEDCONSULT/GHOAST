@@ -40,10 +40,14 @@ export function clearTokens(): void {
 
 export async function tryRefresh(): Promise<boolean> {
   try {
+    // Send an explicit empty JSON object: with Content-Type application/json but an
+    // empty body, Fastify rejects the request (FST_ERR_CTP_EMPTY_JSON_BODY). The
+    // refresh token itself comes from the httpOnly cookie, not the body.
     const res = await fetch('/api/v1/auth/refresh', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
+      body: '{}',
     });
     if (!res.ok) return false;
     const data = await res.json();
@@ -85,10 +89,12 @@ export async function apiFetch<T = unknown>(
   } = {},
 ): Promise<T> {
   const token = getToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  const headers: Record<string, string> = { ...options.headers };
+  // Only declare a JSON content-type when we actually send a body — otherwise Fastify
+  // rejects the empty body (FST_ERR_CTP_EMPTY_JSON_BODY) on POST/DELETE calls like logout.
+  if (options.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (token && !options.skipAuth) {
     headers['Authorization'] = `Bearer ${token}`;
   }
