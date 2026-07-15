@@ -237,9 +237,16 @@ function uploadImport(
     form.append('handle', handle);
     form.append('file', file);
 
+    // Large uploads must go DIRECTLY to the API, not through the Next.js rewrite proxy,
+    // which buffers the whole body and 500s on big files. Auth is via the Bearer token,
+    // so no cookies/credentials are needed cross-origin. Falls back to the same-origin
+    // rewrite when NEXT_PUBLIC_API_URL isn't set (local dev).
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
+    const url = `${apiBase}/api/v1/accounts/import`;
+
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/v1/accounts/import');
-    xhr.withCredentials = true;
+    xhr.open('POST', url);
+    xhr.withCredentials = !apiBase; // cookies only matter for the same-origin fallback
     const token = getToken();
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 

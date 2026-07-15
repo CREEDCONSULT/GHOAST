@@ -19,8 +19,12 @@ COPY . .
 
 ARG API_URL=https://api-production-945c0.up.railway.app
 ARG NEXT_PUBLIC_APP_URL=https://web-production-4b55f8.up.railway.app
+# Public API origin for direct browser->API uploads (bypasses the Next rewrite proxy,
+# which cannot handle large multipart bodies). Baked into the client bundle at build time.
+ARG NEXT_PUBLIC_API_URL=https://api-production-945c0.up.railway.app
 ENV API_URL=$API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run db:generate --workspace=packages/db \
   && npm run build
