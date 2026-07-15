@@ -39,7 +39,36 @@ export interface ImportSummary {
   ghostCount: number;
   newGhostCount: number;
   engagementIncluded: boolean;
+  /** True when Instagram's export appears to have truncated the follower list (see below). */
+  followersLikelyIncomplete: boolean;
   tierBreakdown: { tier1: number; tier2: number; tier3: number; tier4: number; tier5: number };
+}
+
+/**
+ * Instagram's data export sometimes returns only a recent slice of a user's followers while
+ * the following list is complete. When that happens, "who doesn't follow you back" over-reports
+ * badly. Heuristic: the oldest follower is far newer than the oldest followed account.
+ */
+function detectTruncatedFollowers(parsed: ParsedExport): boolean {
+  const oldest = (arr: { followedAt: Date | null }[]): number | null => {
+    let min: number | null = null;
+    for (const x of arr) {
+      if (x.followedAt) {
+        const t = x.followedAt.getTime();
+        if (min === null || t < min) min = t;
+      }
+    }
+    return min;
+  };
+  const followingOldest = oldest(parsed.following);
+  const followersOldest = oldest(parsed.followers);
+  if (followingOldest === null || followersOldest === null) return false;
+  const TWO_YEARS_MS = 730 * 24 * 60 * 60 * 1000;
+  return (
+    parsed.following.length > 100 &&
+    parsed.followers.length < parsed.following.length &&
+    followersOldest - followingOldest > TWO_YEARS_MS
+  );
 }
 
 /** Scored, export-derived fields written to a Ghost row (shared by create + update paths). */
@@ -234,6 +263,7 @@ export async function importParsedExport(
     ghostCount: ghosts.length,
     newGhostCount,
     engagementIncluded: parsed.engagementFilesPresent,
+    followersLikelyIncomplete: detectTruncatedFollowers(parsed),
     tierBreakdown,
   };
 }

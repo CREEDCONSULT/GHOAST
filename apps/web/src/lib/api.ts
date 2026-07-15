@@ -230,6 +230,7 @@ export interface ImportSummary {
   ghostCount: number;
   newGhostCount: number;
   engagementIncluded: boolean;
+  followersLikelyIncomplete: boolean;
   tierBreakdown: { tier1: number; tier2: number; tier3: number; tier4: number; tier5: number };
 }
 

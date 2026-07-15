@@ -141,6 +141,38 @@ describe('parseExportFiles', () => {
     expect(names).toHaveLength(2);
   });
 
+  it('parses the following.json shape where the username is in `title` (no value field)', () => {
+    // Real Instagram following.json puts the handle in `title`; string_list_data has only
+    // href + timestamp (no `value`). Followers use `value`. Both must parse.
+    const parsed = parseExportFiles({
+      'following.json': JSON.stringify({
+        relationships_following: [
+          { title: 'alice', string_list_data: [{ href: 'https://www.instagram.com/_u/alice', timestamp: 100 }] },
+          { title: 'bob', string_list_data: [{ href: 'https://www.instagram.com/_u/bob', timestamp: 200 }] },
+        ],
+      }),
+      'followers_1.json': JSON.stringify([
+        { title: '', string_list_data: [{ href: 'https://www.instagram.com/alice', value: 'alice', timestamp: 50 }] },
+      ]),
+    });
+    expect(parsed.following.map((f) => f.username).sort()).toEqual(['alice', 'bob']);
+    expect(parsed.following.find((f) => f.username === 'alice')?.followedAt?.getTime()).toBe(100_000);
+    // alice follows back; only bob is a ghost
+    expect(computeGhosts(parsed).map((g) => g.username)).toEqual(['bob']);
+  });
+
+  it('falls back to the href when neither value nor title is present', () => {
+    const parsed = parseExportFiles({
+      'following.json': JSON.stringify({
+        relationships_following: [
+          { string_list_data: [{ href: 'https://www.instagram.com/_u/carol', timestamp: 1 }] },
+        ],
+      }),
+      'followers_1.json': JSON.stringify([]),
+    });
+    expect(parsed.following.map((f) => f.username)).toEqual(['carol']);
+  });
+
   it('throws a typed error when neither following nor followers is present', () => {
     expect(() => parseExportFiles({ 'random.json': '{}' })).toThrow(ExportParseError);
   });

@@ -24,6 +24,7 @@ export default function ConnectPage() {
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
+  const [warning, setWarning] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
 
@@ -60,6 +61,19 @@ export default function ConnectPage() {
 
       setStatusText('Uploading…');
       const summary: ImportSummary = await api.importExport(h, prepared, setProgress);
+
+      if (summary.followersLikelyIncomplete) {
+        // Instagram truncated the follower list — warn before showing an inflated ghost count.
+        setWarning(
+          `Heads up: Instagram's export only included ${summary.followersCount.toLocaleString()} of your ` +
+            `followers (it often truncates this for larger accounts). Because Ghoast can only compare ` +
+            `against the followers in your export, some accounts that actually follow you back may be ` +
+            `listed as ghosts. Re-requesting your export sometimes returns the full list.`,
+        );
+        setLoading(false);
+        return;
+      }
+
       toast(
         `Found ${summary.ghostCount} ghost${summary.ghostCount === 1 ? '' : 's'} not following you back`,
         'success',
@@ -214,6 +228,32 @@ export default function ConnectPage() {
         </div>
 
         {error && <p style={{ fontSize: 13, color: 'var(--red)', lineHeight: 1.5 }}>{error}</p>}
+
+        {warning && (
+          <div
+            style={{
+              background: 'rgba(255,209,102,.08)',
+              border: '1px solid rgba(255,209,102,.35)',
+              borderRadius: 12,
+              padding: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <p style={{ fontSize: 13, color: 'var(--ghost-text)', lineHeight: 1.6, margin: 0 }}>
+              ⚠️ {warning}
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push('/app/dashboard')}
+              className="btn btn-primary btn-sm"
+              style={{ alignSelf: 'flex-start' }}
+            >
+              View my results anyway →
+            </button>
+          </div>
+        )}
 
         {loading && statusText && (
           <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center' as const }}>{statusText}</p>

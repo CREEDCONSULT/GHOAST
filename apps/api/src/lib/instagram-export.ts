@@ -129,16 +129,37 @@ function sanitize(s: string): string {
   return out.trim();
 }
 
-/** Extract {username, href, followedAt} from a relationships-style entry. */
+/** Pull a username out of an instagram.com profile URL, e.g. .../_u/name or .../name */
+function usernameFromHref(href: unknown): string {
+  if (typeof href !== 'string') return '';
+  const m = href.replace(/\/+$/, '').match(/instagram\.com\/(?:_u\/)?([^/?#]+)/i);
+  return m?.[1] ?? '';
+}
+
+/**
+ * Extract {username, href, followedAt} from a relationships entry.
+ *
+ * The username lives in different places depending on the file:
+ *  - followers_1.json: string_list_data[0].value  (title is empty)
+ *  - following.json:   the top-level `title`       (string_list_data has only href+timestamp)
+ * We also fall back to parsing it out of the href. This tolerance is why following (which
+ * has no `value`) was previously dropped entirely.
+ */
+function pickUsername(raw: RawEntry): string {
+  const value = raw.string_list_data?.[0]?.value;
+  if (typeof value === 'string' && value.length > 0) return value;
+  if (typeof raw.title === 'string' && raw.title.length > 0) return raw.title;
+  return usernameFromHref(raw.string_list_data?.[0]?.href);
+}
+
 function parseFollowEntry(raw: RawEntry): FollowEntry | null {
   const datum = raw.string_list_data?.[0];
-  if (!datum || typeof datum.value !== 'string') return null;
-  const username = sanitize(datum.value);
+  const username = sanitize(pickUsername(raw));
   if (username.length === 0) return null;
   return {
     username,
-    href: typeof datum.href === 'string' ? sanitize(datum.href) : null,
-    followedAt: toDate(datum.timestamp),
+    href: typeof datum?.href === 'string' ? sanitize(datum.href) : null,
+    followedAt: toDate(datum?.timestamp),
   };
 }
 
@@ -250,8 +271,6 @@ export function parseExportFiles(files: Record<string, string>): ParsedExport {
       closeFriends: result.closeFriends.length,
       engagement: result.engagement.size,
       engagementFilesPresent,
-      sampleFollowing: result.following.slice(0, 3).map((f) => f.username),
-      sampleFollowers: result.followers.slice(0, 3).map((f) => f.username),
     },
     'export parsed counts',
   );
