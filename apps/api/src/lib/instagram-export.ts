@@ -113,13 +113,30 @@ function toDate(timestamp: unknown): Date | null {
   return new Date(timestamp * 1000);
 }
 
+/**
+ * Strip NUL bytes and other C0 control characters. PostgreSQL text columns cannot store
+ * a NUL (0x00) — it aborts the whole query — and real Instagram handles never contain
+ * control characters, so removing them is safe and makes the import robust to odd data.
+ */
+function sanitize(s: string): string {
+  let out = '';
+  for (const ch of s) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (code <= 31 || code === 127) continue; // C0 controls + DEL, incl. NUL (0x00)
+    out += ch;
+  }
+  return out.trim();
+}
+
 /** Extract {username, href, followedAt} from a relationships-style entry. */
 function parseFollowEntry(raw: RawEntry): FollowEntry | null {
   const datum = raw.string_list_data?.[0];
-  if (!datum || typeof datum.value !== 'string' || datum.value.length === 0) return null;
+  if (!datum || typeof datum.value !== 'string') return null;
+  const username = sanitize(datum.value);
+  if (username.length === 0) return null;
   return {
-    username: datum.value,
-    href: typeof datum.href === 'string' ? datum.href : null,
+    username,
+    href: typeof datum.href === 'string' ? sanitize(datum.href) : null,
     followedAt: toDate(datum.timestamp),
   };
 }
@@ -177,7 +194,8 @@ function bump(
   kind: 'likes' | 'comments',
   at: Date | null,
 ): void {
-  const key = username.toLowerCase();
+  const key = sanitize(username).toLowerCase();
+  if (key.length === 0) return;
   const cur = engagement.get(key) ?? { likes: 0, comments: 0, lastAt: null };
   cur[kind] += 1;
   if (at && (!cur.lastAt || at > cur.lastAt)) cur.lastAt = at;

@@ -120,6 +120,27 @@ describe('parseExportFiles', () => {
     expect(parsed.engagement.size).toBe(0);
   });
 
+  it('strips NUL bytes and control chars from handles (Postgres cannot store 0x00)', () => {
+    const NUL = String.fromCharCode(0);
+    const nasty = 'na' + NUL + 'sty';
+    const allControl = NUL + String.fromCharCode(9);
+    const parsed = parseExportFiles({
+      'following.json': JSON.stringify({
+        relationships_following: [
+          { string_list_data: [{ href: 'x', value: nasty, timestamp: 1 }] },
+          { string_list_data: [{ href: 'x', value: allControl, timestamp: 2 }] },
+          { string_list_data: [{ href: 'x', value: 'clean', timestamp: 3 }] },
+        ],
+      }),
+      'followers_1.json': JSON.stringify([]),
+    });
+    const names = parsed.following.map((f) => f.username);
+    expect(names).toContain('nasty');
+    expect(names).toContain('clean');
+    expect(names.every((n) => !n.includes(NUL))).toBe(true);
+    expect(names).toHaveLength(2);
+  });
+
   it('throws a typed error when neither following nor followers is present', () => {
     expect(() => parseExportFiles({ 'random.json': '{}' })).toThrow(ExportParseError);
   });
