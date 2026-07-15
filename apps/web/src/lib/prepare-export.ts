@@ -1,18 +1,18 @@
 /**
- * Client-side export trimming.
+ * Client-side export trimming (streaming).
  *
- * Instagram's full "Download your information" ZIP can be hundreds of MB (it includes
- * all your photos/videos/messages). Ghoast only needs a handful of small JSON files.
- * Rather than upload the whole thing (which blows past the server's size limit), we
- * open the ZIP in the browser, keep only the relevant JSON files, and repackage them
- * into a tiny ZIP that uploads in seconds.
+ * Instagram's full "Download your information" ZIP can be many hundreds of MB or even
+ * GBs (it includes all your photos/videos/messages). Ghoast only needs a handful of
+ * small JSON files. We stream the ZIP through fflate in the browser — reading it in
+ * chunks and decompressing ONLY the relevant JSON entries (media entries are skipped
+ * without being loaded) — then repackage the tiny result for upload. Memory stays low
+ * regardless of how large the original export is.
  */
 
-import { unzipSync, zipSync, strToU8 } from 'fflate';
+import { Unzip, UnzipInflate, zipSync } from 'fflate';
 
-// Only read files up to this size into memory in the browser (guards against OOM on
-// enormous exports). The relevant JSON is tiny; this ceiling is about the container ZIP.
-const MAX_READ_BYTES = 400 * 1024 * 1024; // 400 MB
+// Sanity ceiling — streaming keeps memory low, but refuse truly absurd inputs.
+const MAX_FILE_BYTES = 4 * 1024 * 1024 * 1024; // 4 GB
 
 const BASENAME = (path: string): string => path.split('/').pop()?.toLowerCase() ?? '';
 const isRelevant = (p: string): boolean => {
@@ -30,8 +30,8 @@ const isRelevant = (p: string): boolean => {
 export class ExportTooLargeError extends Error {
   constructor() {
     super(
-      'That file is very large. Re-request your export and choose "Some of your information" ' +
-        '— just Followers and following (plus Likes and Comments) — in JSON format.',
+      'That file is unexpectedly huge. Re-request your export and choose "Some of your ' +
+        'information" — Followers and following (plus Likes and Comments) — in JSON format.',
     );
     this.name = 'ExportTooLargeError';
   }
@@ -47,8 +47,16 @@ export class NoRelevantFilesError extends Error {
   }
 }
 
-function looksLikeZip(bytes: Uint8Array): boolean {
-  return bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b; // "PK"
+function concat(parts: Uint8Array[]): Uint8Array {
+  let total = 0;
+  for (const p of parts) total += p.length;
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const p of parts) {
+    out.set(p, offset);
+    offset += p.length;
+  }
+  return out;
 }
 
 /**
@@ -61,34 +69,50 @@ export async function prepareExportForUpload(file: File): Promise<File> {
   // A single JSON file is already small — pass it through.
   if (name.endsWith('.json') && !name.endsWith('.zip')) return file;
 
-  if (file.size > MAX_READ_BYTES) throw new ExportTooLargeError();
+  if (file.size > MAX_FILE_BYTES) throw new ExportTooLargeError();
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (!looksLikeZip(bytes)) {
-    // Not a zip and not .json — let the server try to parse it as a single file.
-    return file;
-  }
+  const collected: Record<string, Uint8Array[]> = {};
+  let streamError: unknown = null;
 
-  let entries: Record<string, Uint8Array>;
+  const unzip = new Unzip();
+  unzip.register(UnzipInflate);
+  unzip.onfile = (entry) => {
+    if (!isRelevant(entry.name)) return; // skip media: never start() → data isn't decompressed
+    const base = BASENAME(entry.name);
+    const parts: Uint8Array[] = [];
+    collected[base] = parts;
+    entry.ondata = (err, chunk) => {
+      if (err) streamError = err;
+      else if (chunk && chunk.length) parts.push(chunk);
+    };
+    entry.start();
+  };
+
+  const reader = file.stream().getReader();
   try {
-    entries = unzipSync(bytes, { filter: (f) => isRelevant(f.name) });
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value && value.length) unzip.push(value, false);
+      if (streamError) throw streamError;
+    }
+    unzip.push(new Uint8Array(0), true);
   } catch {
+    // Not a readable ZIP (e.g. HTML export, corrupt file) — or an inflate error.
+    reader.releaseLock?.();
     throw new NoRelevantFilesError();
   }
 
-  const kept = Object.entries(entries).filter(([, data]) => data.length > 0);
-  if (kept.length === 0) throw new NoRelevantFilesError();
-
-  // Flatten paths to basenames (the server parser matches on basename anyway) and repackage.
   const trimmed: Record<string, Uint8Array> = {};
-  for (const [path, data] of kept) trimmed[BASENAME(path)] = data;
+  for (const [base, parts] of Object.entries(collected)) {
+    const data = concat(parts);
+    if (data.length > 0) trimmed[base] = data;
+  }
+
+  if (Object.keys(trimmed).length === 0) throw new NoRelevantFilesError();
 
   const zipped = zipSync(trimmed, { level: 6 });
-  // Copy into a fresh Uint8Array so the Blob owns a clean ArrayBuffer.
   const out = new Uint8Array(zipped.length);
   out.set(zipped);
   return new File([out], 'ghoast-export.zip', { type: 'application/zip' });
 }
-
-// Re-exported for callers that want to encode fixture data in tests.
-export { strToU8 };
