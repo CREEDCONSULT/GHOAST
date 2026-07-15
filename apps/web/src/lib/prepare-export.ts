@@ -77,13 +77,18 @@ export async function prepareExportForUpload(file: File): Promise<File> {
   const unzip = new Unzip();
   unzip.register(UnzipInflate);
   unzip.onfile = (entry) => {
-    if (!isRelevant(entry.name)) return; // skip media: never start() → data isn't decompressed
-    const base = BASENAME(entry.name);
+    // We MUST start() every entry — Instagram's export is a streaming ZIP that uses data
+    // descriptors, and fflate can only advance past such an entry by consuming it. If we
+    // skipped media (never start()), fflate would lose its place and drop the files after
+    // it (which is why following/followers came back nearly empty). So consume every entry
+    // but only KEEP the relevant JSON; media chunks are decompressed and immediately discarded.
+    const keep = isRelevant(entry.name);
     const parts: Uint8Array[] = [];
-    collected[base] = parts;
+    if (keep) collected[BASENAME(entry.name)] = parts;
     entry.ondata = (err, chunk) => {
       if (err) streamError = err;
-      else if (chunk && chunk.length) parts.push(chunk);
+      else if (keep && chunk && chunk.length) parts.push(chunk);
+      // non-relevant chunk: dropped (not retained) — memory stays bounded
     };
     entry.start();
   };

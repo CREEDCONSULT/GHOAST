@@ -20,6 +20,7 @@
  */
 
 import { unzipSync, strFromU8 } from 'fflate';
+import { logger } from './logger.js';
 
 // ── Errors ──────────────────────────────────────────────────────────────────────
 
@@ -235,13 +236,26 @@ export function parseExportFiles(files: Record<string, string>): ParsedExport {
     );
   }
 
-  return {
+  const result = {
     following: dedupeByUsername(following),
     followers: dedupeByUsername(followers),
     closeFriends: Array.from(new Set(closeFriends)),
     engagement,
     engagementFilesPresent,
   };
+  logger.info(
+    {
+      following: result.following.length,
+      followers: result.followers.length,
+      closeFriends: result.closeFriends.length,
+      engagement: result.engagement.size,
+      engagementFilesPresent,
+      sampleFollowing: result.following.slice(0, 3).map((f) => f.username),
+      sampleFollowers: result.followers.slice(0, 3).map((f) => f.username),
+    },
+    'export parsed counts',
+  );
+  return result;
 }
 
 /**
@@ -265,6 +279,11 @@ export function parseExportZip(zipBuffer: Buffer | Uint8Array): ParsedExport {
   for (const [name, bytes] of Object.entries(entries)) {
     files[name] = strFromU8(bytes);
   }
+  // Diagnostic: which relevant files (and sizes) did we actually receive in the upload?
+  logger.info(
+    { zipEntries: Object.entries(entries).map(([n, b]) => `${n}:${b.length}`) },
+    'export zip parsed',
+  );
   return parseExportFiles(files);
 }
 
