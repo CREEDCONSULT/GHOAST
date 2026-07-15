@@ -38,7 +38,7 @@ export function clearTokens(): void {
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 
-async function tryRefresh(): Promise<boolean> {
+export async function tryRefresh(): Promise<boolean> {
   try {
     const res = await fetch('/api/v1/auth/refresh', {
       method: 'POST',

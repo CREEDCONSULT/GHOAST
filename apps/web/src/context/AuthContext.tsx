@@ -8,7 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import { getToken, getStoredUser, setStoredUser, type User } from '../lib/api';
+import { getToken, getStoredUser, setStoredUser, tryRefresh, type User } from '../lib/api';
 import { login as doLogin, register as doRegister, logout as doLogout } from '../lib/auth';
 
 interface AuthContextValue {
@@ -29,13 +29,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    queueMicrotask(() => {
-      if (cancelled) return;
+    (async () => {
+      // Fast path: an access token already exists in this tab.
       if (getToken()) {
-        setUserState(getStoredUser());
+        if (!cancelled) {
+          setUserState(getStoredUser());
+          setIsLoading(false);
+        }
+        return;
       }
-      setIsLoading(false);
-    });
+
+      // No access token (e.g. the tab was closed and sessionStorage cleared), but the
+      // httpOnly refresh cookie may still be valid — try to restore the session with it.
+      let restored = false;
+      try {
+        restored = await tryRefresh();
+      } catch {
+        restored = false;
+      }
+      if (cancelled) return;
+
+      if (restored) {
+        setUserState(getStoredUser());
+      } else {
+        // Refresh failed: proactively clear any stale refresh cookie so the middleware
+        // stops redirecting /login -> /app and we don't get stuck in a redirect loop.
+        try {
+          await doLogout();
+        } catch {
+          /* ignore */
+        }
+        if (!cancelled) setUserState(null);
+      }
+      if (!cancelled) setIsLoading(false);
+    })();
 
     return () => {
       cancelled = true;
