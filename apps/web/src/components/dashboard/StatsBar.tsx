@@ -64,7 +64,11 @@ export default function StatsBar({ account, stats }: StatsBarProps) {
         </div>
         <div className="stat-box">
           <div className="stat-val" style={{ color: 'var(--red)' }}>
-            {stats.totalGhosts - stats.removedGhosts}
+            {stats.tierBreakdown.tier1 +
+              stats.tierBreakdown.tier2 +
+              stats.tierBreakdown.tier3 +
+              stats.tierBreakdown.tier4 +
+              stats.tierBreakdown.tier5}
           </div>
           <div className="stat-label">Ghosts</div>
         </div>

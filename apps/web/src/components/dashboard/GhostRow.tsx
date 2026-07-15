@@ -31,7 +31,9 @@ interface GhostRowProps {
   selected: boolean;
   onSelect: (id: string, checked: boolean) => void;
   onMarkDone: (ghost: Ghost) => void;
+  onKeep: (ghost: Ghost) => void;
   marking: boolean;
+  keeping: boolean;
 }
 
 export default function GhostRow({
@@ -39,7 +41,9 @@ export default function GhostRow({
   selected,
   onSelect,
   onMarkDone,
+  onKeep,
   marking,
+  keeping,
 }: GhostRowProps) {
   const tierColor = TIER_COLORS[ghost.tier];
   const tierLabel = TIER_LABELS[ghost.tier];
@@ -87,8 +91,16 @@ export default function GhostRow({
       {/* Score */}
       <div className="ghost-score">{ghost.priorityScore}</div>
 
-      {/* Actions: open the profile on Instagram, then mark it done */}
+      {/* Actions: keep (protect), open the profile, then mark it done */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          className="btn btn-sm btn-ghost"
+          onClick={() => onKeep(ghost)}
+          disabled={keeping}
+          title="Keep this account — protect it and remove it from your cleanup list"
+        >
+          {keeping ? '…' : '⭐ Keep'}
+        </button>
         <a
           href={profileUrl}
           target="_blank"

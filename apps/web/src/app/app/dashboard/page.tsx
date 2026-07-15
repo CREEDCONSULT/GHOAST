@@ -28,6 +28,7 @@ export default function DashboardPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [keepingId, setKeepingId] = useState<string | null>(null);
   const [bulkMarking, setBulkMarking] = useState(false);
 
   const [pageLoading, setPageLoading] = useState(true);
@@ -149,6 +150,36 @@ export default function DashboardPage() {
     }
   }
 
+  // ── Keep (whitelist) an account — protects it and removes it from the list ──
+  async function handleKeep(ghost: Ghost) {
+    if (!account) return;
+    setKeepingId(ghost.id);
+    try {
+      await api.keepGhost(account.id, ghost.id);
+      setGhosts((prev) => prev.filter((g) => g.id !== ghost.id));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(ghost.id);
+        return next;
+      });
+      if (stats) {
+        const tierKey = `tier${ghost.tier}` as keyof typeof stats.tierBreakdown;
+        setStats({
+          ...stats,
+          tierBreakdown: {
+            ...stats.tierBreakdown,
+            [tierKey]: Math.max(0, stats.tierBreakdown[tierKey] - 1),
+          },
+        });
+      }
+      toast(`Keeping @${ghost.handle} — protected from cleanup`, 'success');
+    } catch {
+      toast(`Could not keep @${ghost.handle}`, 'error');
+    } finally {
+      setKeepingId(null);
+    }
+  }
+
   // ── Bulk mark selected as done ────────────────────────────────────────────
   async function handleBulkMark() {
     if (!account || selectedIds.size === 0) return;
@@ -261,7 +292,9 @@ export default function DashboardPage() {
         onSelect={handleSelect}
         onSelectAll={handleSelectAll}
         onMarkDone={handleMarkDone}
+        onKeep={handleKeep}
         markingId={markingId}
+        keepingId={keepingId}
         loading={ghostsLoading}
         dailyCleanupCount={dailyCleanupCount}
         dailyCleanupCap={dailyCleanupCap}

@@ -11,7 +11,9 @@ interface GhostListProps {
   onSelect: (id: string, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
   onMarkDone: (ghost: Ghost) => void;
+  onKeep: (ghost: Ghost) => void;
   markingId: string | null;
+  keepingId: string | null;
   loading: boolean;
   dailyCleanupCount: number;
   dailyCleanupCap: number;
@@ -24,7 +26,9 @@ export default function GhostList({
   onSelect,
   onSelectAll,
   onMarkDone,
+  onKeep,
   markingId,
+  keepingId,
   loading,
   dailyCleanupCount,
   dailyCleanupCap,
@@ -102,7 +106,9 @@ export default function GhostList({
           selected={selectedIds.has(ghost.id)}
           onSelect={onSelect}
           onMarkDone={onMarkDone}
+          onKeep={onKeep}
           marking={markingId === ghost.id}
+          keeping={keepingId === ghost.id}
         />
       ))}
 

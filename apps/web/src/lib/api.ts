@@ -202,6 +202,19 @@ export const api = {
       { method: 'DELETE' },
     ),
 
+  // Keep (whitelist) an account so it's protected and hidden from the cleanup list.
+  keepGhost: (accountId: string, ghostId: string) =>
+    apiFetch<{ ghost: unknown }>(
+      `/accounts/${accountId}/ghosts/${ghostId}/whitelist`,
+      { method: 'POST' },
+    ),
+
+  unkeepGhost: (accountId: string, ghostId: string) =>
+    apiFetch<void>(
+      `/accounts/${accountId}/ghosts/${ghostId}/whitelist`,
+      { method: 'DELETE' },
+    ),
+
   // Billing
   subscribe: (tier: 'PRO' | 'PRO_PLUS', successUrl: string, cancelUrl: string) =>
     apiFetch<{ url: string }>('/billing/subscribe', {

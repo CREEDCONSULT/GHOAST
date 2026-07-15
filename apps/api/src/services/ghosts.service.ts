@@ -196,6 +196,7 @@ export async function listGhosts(
   const where: Prisma.GhostWhereInput = {
     accountId,
     removedAt: null,
+    isWhitelisted: false, // "kept" accounts are protected and hidden from the cleanup list
     ...(tier !== undefined && { tier }),
     ...(search && {
       OR: [
@@ -311,7 +312,7 @@ export async function getAccountStats(
   });
   if (!account) throw new GhostAccountNotFoundError();
 
-  const activeWhere = { accountId, removedAt: null };
+  const activeWhere = { accountId, removedAt: null, isWhitelisted: false };
 
   const [totalGhosts, removedGhosts, tierCounts, accountTypeCounts, scoreAggregate] =
     await Promise.all([

@@ -17,14 +17,14 @@ import {
   WhitelistGhostNotFoundError,
   WhitelistLimitReachedError,
 } from '../services/whitelist.service.js';
-import { requireAuth, checkTier } from '../middleware/requireAuth.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 import { logger } from '../lib/logger.js';
 
 export async function whitelistRoutes(app: FastifyInstance): Promise<void> {
   // ── POST /:id/ghosts/:ghostId/whitelist ────────────────────────────────────
   app.post(
     '/:id/ghosts/:ghostId/whitelist',
-    { preHandler: [requireAuth, checkTier('PRO_PLUS')] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { id: accountId, ghostId } = request.params as { id: string; ghostId: string };
       const userId = request.user!.id;
@@ -61,7 +61,7 @@ export async function whitelistRoutes(app: FastifyInstance): Promise<void> {
   // ── DELETE /:id/ghosts/:ghostId/whitelist ─────────────────────────────────
   app.delete(
     '/:id/ghosts/:ghostId/whitelist',
-    { preHandler: [requireAuth, checkTier('PRO_PLUS')] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { id: accountId, ghostId } = request.params as { id: string; ghostId: string };
       const userId = request.user!.id;
@@ -90,7 +90,7 @@ export async function whitelistRoutes(app: FastifyInstance): Promise<void> {
   // ── GET /:id/whitelist ─────────────────────────────────────────────────────
   app.get(
     '/:id/whitelist',
-    { preHandler: [requireAuth, checkTier('PRO_PLUS')] },
+    { preHandler: requireAuth },
     async (request, reply) => {
       const { id: accountId } = request.params as { id: string };
       const userId = request.user!.id;
