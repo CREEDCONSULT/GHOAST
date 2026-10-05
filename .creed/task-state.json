@@ -1,0 +1,72 @@
+{
+  "agent_id": "unknown",
+  "task_id": "task_f984dd3648",
+  "project": "GHOAST-master",
+  "objective": "GHOAST launch hardening complete; next: founder Stripe+deploy, then first-user validation",
+  "current_plan": [],
+  "completed_work": [],
+  "unresolved_work": [],
+  "files_changed": [],
+  "test_state": {
+    "overall": "unknown",
+    "suites": {}
+  },
+  "decisions": [],
+  "known_failures": [],
+  "research_evidence": [],
+  "environment_state": {},
+  "next_action": "Founder actions: (1) Stripe keys+products+webhook per docs/production/BILLING_ENTITLEMENT.md, test-mode verify with 4242 card; (2) deploy per docs/production/DEPLOYMENT_RUNBOOK.md + smoke checklist; (3) run FIRST_USER_VALIDATION_PLAN.md. Report: LAUNCH_READINESS_REPORT.md — READY WITH CONDITIONS.",
+  "last_checkpoint": "C:\\Users\\daunt\\Downloads\\GHOAST-master (1)\\GHOAST-master\\.creed\\checkpoints\\2026-10-05T11-51-24-999Z-launch-hardening-complete-all-gates-gree.json",
+  "checkpoints": [
+    "C:\\Users\\daunt\\Downloads\\GHOAST-master (1)\\GHOAST-master\\.creed\\checkpoints\\2026-10-05T11-35-59-471Z-launch-hardening-done-all-gates-green.json",
+    "C:\\Users\\daunt\\Downloads\\GHOAST-master (1)\\GHOAST-master\\.creed\\checkpoints\\2026-10-05T11-51-24-999Z-launch-hardening-complete-all-gates-gree.json"
+  ],
+  "model": null,
+  "provider": null,
+  "created_at": "2026-10-05T11:35:59.363Z",
+  "updated_at": "2026-10-05T11:51:25.056Z",
+  "schema_hint": {
+    "agent_id": "string",
+    "task_id": "string",
+    "project": "string",
+    "objective": "string",
+    "current_plan": [
+      {
+        "step": "string",
+        "status": "pending|active|done|blocked"
+      }
+    ],
+    "completed_work": [
+      "string"
+    ],
+    "unresolved_work": [
+      "string"
+    ],
+    "files_changed": [
+      "string"
+    ],
+    "test_state": {
+      "overall": "unknown|pass|fail|partial",
+      "suites": {}
+    },
+    "decisions": [
+      "string"
+    ],
+    "known_failures": [
+      "string"
+    ],
+    "research_evidence": [
+      "string"
+    ],
+    "environment_state": {
+      "note": "arbitrary JSON"
+    },
+    "next_action": "string — THE resumption point",
+    "last_checkpoint": "ISO string",
+    "checkpoints": [
+      "paths"
+    ],
+    "model": "string (metadata only — §21)",
+    "provider": "string (metadata only — §21)"
+  }
+}

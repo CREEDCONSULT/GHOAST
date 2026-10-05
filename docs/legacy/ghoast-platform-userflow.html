@@ -1,0 +1,1877 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ghoast Platform User Flow</title>
+  <style>
+    :root {
+      --black: #080810;
+      --slate: #111120;
+      --slate2: #181830;
+      --specter: #1a1a3a;
+      --violet: #7b4fff;
+      --violet-lo: rgba(123, 79, 255, .14);
+      --violet-mid: rgba(123, 79, 255, .35);
+      --cyan: #00e5ff;
+      --cyan-lo: rgba(0, 229, 255, .1);
+      --red: #ff3e3e;
+      --orange: #ff7a3e;
+      --yellow: #ffd166;
+      --green: #00e676;
+      --ghost: #e8e8ff;
+      --muted: #7070a0;
+      --line: rgba(232, 232, 255, .1);
+      --grad: linear-gradient(135deg, #7b4fff 0%, #00e5ff 100%);
+      --danger: #ff5f7a;
+      --warn: #ffc766;
+      --ok: #40f29b;
+      --radius: 8px;
+      --shadow: 0 24px 80px rgba(0, 0, 0, .42);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--black);
+      color: var(--ghost);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(123, 79, 255, .16), transparent 32%),
+        radial-gradient(circle at 86% 10%, rgba(0, 229, 255, .12), transparent 28%),
+        linear-gradient(180deg, #080810 0%, #0c0c18 52%, #07070d 100%);
+      color: var(--ghost);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .24;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,.9), rgba(0,0,0,.18));
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      border-right: 1px solid var(--line);
+      background: rgba(8, 8, 16, .82);
+      backdrop-filter: blur(18px);
+      padding: 22px 18px;
+      overflow: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 6px 22px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 18px;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: var(--grad);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      box-shadow: 0 0 28px rgba(123, 79, 255, .42);
+    }
+
+    .brand-text strong {
+      display: block;
+      letter-spacing: -.03em;
+      font-size: 18px;
+    }
+
+    .brand-text span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .nav-kicker {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 0 8px 10px;
+    }
+
+    .flow-nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .nav-step {
+      width: 100%;
+      border: 1px solid transparent;
+      color: var(--muted);
+      background: transparent;
+      padding: 10px 10px;
+      border-radius: var(--radius);
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 9px;
+      align-items: center;
+      text-align: left;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+
+    .nav-step:hover {
+      color: var(--ghost);
+      border-color: rgba(123, 79, 255, .24);
+      background: rgba(123, 79, 255, .08);
+    }
+
+    .nav-step.active {
+      color: var(--ghost);
+      border-color: var(--violet-mid);
+      background: var(--violet-lo);
+      box-shadow: inset 0 0 0 1px rgba(0, 229, 255, .04);
+    }
+
+    .step-index {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--ghost);
+      background: var(--specter);
+      border: 1px solid rgba(232, 232, 255, .09);
+    }
+
+    .nav-step.active .step-index {
+      background: var(--grad);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .step-label {
+      min-width: 0;
+    }
+
+    .step-label strong {
+      display: block;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .step-label span {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-note {
+      margin-top: 20px;
+      padding: 13px;
+      border: 1px solid rgba(0, 229, 255, .18);
+      background: rgba(0, 229, 255, .06);
+      border-radius: var(--radius);
+      color: #b7f8ff;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .main {
+      position: relative;
+      z-index: 1;
+      padding: 22px;
+      min-width: 0;
+    }
+
+    .topbar {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 54px);
+      line-height: .95;
+      letter-spacing: -.05em;
+    }
+
+    .title-block p {
+      margin: 10px 0 0;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .meta-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(17, 17, 32, .76);
+      color: var(--ghost);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill.live {
+      border-color: rgba(0, 229, 255, .34);
+      color: var(--cyan);
+      background: rgba(0, 229, 255, .08);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .journey-card,
+    .screen-card,
+    .notes-card {
+      border: 1px solid var(--line);
+      background: rgba(17, 17, 32, .78);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(24, 24, 48, .5);
+      gap: 12px;
+    }
+
+    .card-head h2 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: .02em;
+    }
+
+    .card-head span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .journey {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(10, minmax(120px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+    }
+
+    .journey-node {
+      position: relative;
+      min-height: 116px;
+      border: 1px solid rgba(232, 232, 255, .1);
+      background: rgba(26, 26, 58, .66);
+      border-radius: var(--radius);
+      padding: 12px;
+      text-align: left;
+      color: var(--ghost);
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .journey-node:hover {
+      transform: translateY(-2px);
+      border-color: rgba(0, 229, 255, .34);
+    }
+
+    .journey-node.active {
+      border-color: var(--violet);
+      background:
+        linear-gradient(180deg, rgba(123, 79, 255, .22), rgba(26, 26, 58, .74));
+      box-shadow: 0 0 0 1px rgba(123, 79, 255, .25), 0 0 28px rgba(123, 79, 255, .16);
+    }
+
+    .node-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .node-number {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--cyan);
+      font-weight: 800;
+    }
+
+    .node-type {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      font-weight: 800;
+    }
+
+    .journey-node strong {
+      display: block;
+      font-size: 14px;
+      letter-spacing: -.02em;
+      margin-bottom: 6px;
+    }
+
+    .journey-node p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.42fr) minmax(340px, .58fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .screen-stage {
+      padding: 18px;
+    }
+
+    .browser-frame {
+      min-height: 650px;
+      border: 1px solid rgba(232, 232, 255, .12);
+      border-radius: var(--radius);
+      background: #0b0b14;
+      overflow: hidden;
+    }
+
+    .browser-bar {
+      height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-bottom: 1px solid rgba(232, 232, 255, .09);
+      background: #111120;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(232, 232, 255, .2);
+    }
+
+    .dot:nth-child(1) { background: #ff5f57; }
+    .dot:nth-child(2) { background: #ffbd2e; }
+    .dot:nth-child(3) { background: #28c840; }
+
+    .url {
+      margin-left: 8px;
+      flex: 1;
+      min-width: 0;
+      background: rgba(8, 8, 16, .78);
+      border: 1px solid rgba(232, 232, 255, .08);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mock {
+      min-height: 612px;
+      background:
+        radial-gradient(circle at 80% 5%, rgba(123, 79, 255, .16), transparent 30%),
+        radial-gradient(circle at 12% 24%, rgba(0, 229, 255, .08), transparent 24%),
+        #080810;
+      padding: 28px;
+    }
+
+    .mock-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .mock-wordmark {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 900;
+      letter-spacing: -.03em;
+    }
+
+    .mock-logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--grad);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      box-shadow: 0 0 18px rgba(123, 79, 255, .42);
+    }
+
+    .mock-links {
+      display: flex;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      align-items: center;
+    }
+
+    .mock-btn {
+      border: 0;
+      border-radius: 8px;
+      background: var(--grad);
+      color: #fff;
+      padding: 9px 13px;
+      font-weight: 800;
+      font-size: 12px;
+      box-shadow: 0 0 20px rgba(123, 79, 255, .3);
+    }
+
+    .ghost-btn {
+      border: 1px solid rgba(232, 232, 255, .12);
+      background: rgba(232, 232, 255, .03);
+      color: var(--ghost);
+      border-radius: 8px;
+      padding: 9px 13px;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .hero-layout {
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(280px, .75fr);
+      gap: 28px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cyan);
+      border: 1px solid rgba(0, 229, 255, .2);
+      background: rgba(0, 229, 255, .07);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+
+    .pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+
+    .hero-title {
+      margin: 18px 0 14px;
+      font-size: clamp(38px, 5vw, 72px);
+      line-height: .94;
+      letter-spacing: -.06em;
+    }
+
+    .hero-title .grad {
+      display: block;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .hero-copy {
+      margin: 0 0 22px;
+      color: var(--muted);
+      line-height: 1.56;
+      max-width: 540px;
+      font-size: 15px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .metric-card,
+    .panel {
+      border: 1px solid rgba(232, 232, 255, .11);
+      background: rgba(17, 17, 32, .86);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-bottom: 10px;
+    }
+
+    .mini-stat {
+      background: rgba(26, 26, 58, .88);
+      border: 1px solid rgba(123, 79, 255, .16);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .stat-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -.04em;
+    }
+
+    .stat-label {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      font-weight: 800;
+    }
+
+    .tier-row {
+      display: grid;
+      grid-template-columns: 8px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-top: 1px solid rgba(232, 232, 255, .08);
+      font-size: 12px;
+    }
+
+    .tier-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 9px currentColor;
+    }
+
+    .tier-dot.t2 { background: var(--orange); }
+    .tier-dot.t3 { background: var(--yellow); }
+    .tier-dot.t4 { background: var(--violet); }
+    .tier-dot.t5 { background: var(--green); }
+
+    .auth-shell {
+      max-width: 940px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: .95fr 1.05fr;
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .auth-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .field input {
+      width: 100%;
+      border: 1px solid rgba(232, 232, 255, .12);
+      background: rgba(8, 8, 16, .72);
+      color: var(--ghost);
+      padding: 11px 12px;
+      border-radius: 8px;
+    }
+
+    .trust-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .trust-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      align-items: start;
+    }
+
+    .check {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 230, 118, .12);
+      border: 1px solid rgba(0, 230, 118, .24);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .disclosure {
+      border: 1px solid rgba(255, 199, 102, .22);
+      background: rgba(255, 199, 102, .07);
+      color: #ffe0a1;
+      border-radius: var(--radius);
+      padding: 14px;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    .connect-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, .8fr) minmax(320px, 1.2fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .insta-window {
+      border: 1px solid rgba(232, 232, 255, .12);
+      background: #f7f7fb;
+      color: #111;
+      border-radius: var(--radius);
+      padding: 18px;
+      min-height: 360px;
+      display: grid;
+      align-content: center;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .ig-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 30% 108%, #fdf497 0%, #fdf497 14%, #fd5949 45%, #d6249f 60%, #285aeb 90%);
+      margin-bottom: 18px;
+    }
+
+    .progress-wrap {
+      display: grid;
+      gap: 14px;
+    }
+
+    .scan-ring {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      margin: 18px auto;
+      display: grid;
+      place-items: center;
+      background:
+        conic-gradient(var(--cyan) 0 72%, rgba(232,232,255,.09) 72% 100%);
+      position: relative;
+    }
+
+    .scan-ring::after {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border-radius: 50%;
+      background: #0b0b14;
+      border: 1px solid rgba(232, 232, 255, .1);
+    }
+
+    .scan-ring strong {
+      position: relative;
+      z-index: 1;
+      font-size: 46px;
+      letter-spacing: -.06em;
+    }
+
+    .scan-steps {
+      display: grid;
+      gap: 8px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .scan-step {
+      display: grid;
+      grid-template-columns: 22px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(232, 232, 255, .09);
+      background: rgba(26, 26, 58, .6);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .scan-step.done {
+      color: var(--ghost);
+      border-color: rgba(0, 230, 118, .22);
+    }
+
+    .scan-step.live {
+      color: var(--cyan);
+      border-color: rgba(0, 229, 255, .22);
+      background: rgba(0, 229, 255, .06);
+    }
+
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .dash-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .dash-main {
+      display: grid;
+      grid-template-columns: .7fr 1.3fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .account-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 1px solid rgba(232, 232, 255, .1);
+      background: rgba(26, 26, 58, .72);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--grad);
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .account-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .account-meta strong,
+    .account-meta span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .account-meta span {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .ghost-table {
+      border: 1px solid rgba(232, 232, 255, .1);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .ghost-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 74px 70px 88px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-top: 1px solid rgba(232, 232, 255, .07);
+      font-size: 12px;
+    }
+
+    .ghost-row:first-child {
+      border-top: 0;
+    }
+
+    .ghost-row.head {
+      color: var(--muted);
+      background: rgba(24, 24, 48, .55);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      border: 1px solid rgba(232, 232, 255, .2);
+      background: rgba(8, 8, 16, .6);
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .checkbox.on {
+      background: var(--violet);
+      border-color: var(--violet);
+      color: #fff;
+    }
+
+    .checkbox.lock {
+      color: var(--green);
+      border-color: rgba(0, 230, 118, .34);
+      background: rgba(0, 230, 118, .08);
+    }
+
+    .score {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-weight: 900;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 900;
+      border: 1px solid rgba(232, 232, 255, .1);
+      background: rgba(232, 232, 255, .04);
+      white-space: nowrap;
+    }
+
+    .badge.red { color: var(--red); border-color: rgba(255, 62, 62, .28); background: rgba(255, 62, 62, .08); }
+    .badge.orange { color: var(--orange); border-color: rgba(255, 122, 62, .28); background: rgba(255, 122, 62, .08); }
+    .badge.yellow { color: var(--yellow); border-color: rgba(255, 209, 102, .28); background: rgba(255, 209, 102, .08); }
+    .badge.green { color: var(--green); border-color: rgba(0, 230, 118, .28); background: rgba(0, 230, 118, .08); }
+    .badge.cyan { color: var(--cyan); border-color: rgba(0, 229, 255, .28); background: rgba(0, 229, 255, .08); }
+
+    .queue-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .queue-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .bar {
+      height: 8px;
+      background: rgba(232, 232, 255, .09);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: 64%;
+      background: var(--grad);
+      border-radius: inherit;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 8px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-top: 1px solid rgba(232, 232, 255, .08);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .timeline-item:first-child {
+      border-top: 0;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(232, 232, 255, .18);
+    }
+
+    .status-dot.done { background: var(--green); box-shadow: 0 0 10px rgba(0, 230, 118, .5); }
+    .status-dot.live { background: var(--cyan); box-shadow: 0 0 10px rgba(0, 229, 255, .5); }
+    .status-dot.pause { background: var(--yellow); box-shadow: 0 0 10px rgba(255, 209, 102, .5); }
+
+    .billing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .plan {
+      border: 1px solid rgba(232, 232, 255, .1);
+      background: rgba(17, 17, 32, .76);
+      border-radius: var(--radius);
+      padding: 16px;
+      min-height: 270px;
+      display: grid;
+      align-content: start;
+      gap: 12px;
+    }
+
+    .plan.featured {
+      border-color: rgba(123, 79, 255, .55);
+      box-shadow: 0 0 32px rgba(123, 79, 255, .14);
+      background: linear-gradient(180deg, rgba(123, 79, 255, .16), rgba(17, 17, 32, .82));
+    }
+
+    .price {
+      font-size: 34px;
+      letter-spacing: -.06em;
+      font-weight: 950;
+    }
+
+    .plan ul,
+    .settings-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: .85fr 1.15fr;
+      gap: 14px;
+    }
+
+    .danger-zone {
+      border-color: rgba(255, 95, 122, .24);
+      background: rgba(255, 95, 122, .06);
+    }
+
+    .danger-btn {
+      border: 1px solid rgba(255, 95, 122, .44);
+      background: rgba(255, 95, 122, .12);
+      color: #ffb3c1;
+      border-radius: 8px;
+      padding: 10px 13px;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .notes-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .notes-body {
+      padding: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .note-section h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--ghost);
+    }
+
+    .note-section p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .note-section ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .handoff-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .handoff-item {
+      border: 1px solid rgba(232, 232, 255, .08);
+      background: rgba(26, 26, 58, .48);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .token {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 4px;
+      background: var(--violet);
+      box-shadow: 0 0 9px rgba(123, 79, 255, .6);
+    }
+
+    .flow-controls {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 16px;
+      border-top: 1px solid var(--line);
+      background: rgba(8, 8, 16, .32);
+    }
+
+    .control-btn {
+      border: 1px solid rgba(232, 232, 255, .12);
+      background: rgba(232, 232, 255, .04);
+      color: var(--ghost);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .control-btn.primary {
+      background: var(--grad);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .mobile-only {
+      display: none;
+    }
+
+    @media (max-width: 1180px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .flow-nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .main {
+        padding: 16px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .meta-pills {
+        justify-content: flex-start;
+      }
+
+      .flow-nav {
+        grid-template-columns: 1fr;
+      }
+
+      .mock {
+        padding: 18px;
+      }
+
+      .hero-layout,
+      .auth-shell,
+      .connect-grid,
+      .dash-main,
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dash-stats,
+      .metric-grid,
+      .billing-grid,
+      .queue-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .mock-links {
+        display: none;
+      }
+
+      .ghost-row {
+        grid-template-columns: 24px 1fr 64px;
+      }
+
+      .ghost-row .hide-sm {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Platform user flow navigation">
+      <div class="brand">
+        <div class="brand-mark">G</div>
+        <div class="brand-text">
+          <strong>Ghoast</strong>
+          <span>Platform user flow</span>
+        </div>
+      </div>
+      <div class="nav-kicker">Journey stages</div>
+      <div class="flow-nav" id="sideNav"></div>
+      <div class="sidebar-note">
+        This prototype maps the complete web-first journey: acquisition, auth, account connection, scan, cleanup, billing, retention, and deletion.
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="title-block">
+          <h1>Ghoast platform flow</h1>
+          <p>Clickable HTML user-flow prototype for the product experience, including key screens, user decisions, system states, and implementation handoff notes.</p>
+        </div>
+        <div class="meta-pills" aria-label="Prototype summary">
+          <span class="pill live">Interactive</span>
+          <span class="pill">Web MVP</span>
+          <span class="pill">Safety-first queue</span>
+        </div>
+      </header>
+
+      <section class="shell">
+        <article class="journey-card">
+          <div class="card-head">
+            <h2>End-to-end platform map</h2>
+            <span>Click any stage</span>
+          </div>
+          <div class="journey" id="journey"></div>
+        </article>
+
+        <div class="content-grid">
+          <article class="screen-card">
+            <div class="card-head">
+              <h2 id="screenTitle">Screen</h2>
+              <span id="screenMeta">Stage detail</span>
+            </div>
+            <div class="screen-stage">
+              <div class="browser-frame">
+                <div class="browser-bar">
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="url" id="screenUrl">https://ghoast.app</span>
+                </div>
+                <div class="mock" id="screenMock"></div>
+              </div>
+            </div>
+            <div class="flow-controls">
+              <button class="control-btn" id="prevBtn" type="button">Previous stage</button>
+              <button class="control-btn primary" id="nextBtn" type="button">Next stage</button>
+            </div>
+          </article>
+
+          <aside class="notes-stack">
+            <article class="notes-card">
+              <div class="card-head">
+                <h2>UX notes</h2>
+                <span id="noteType">Decision</span>
+              </div>
+              <div class="notes-body" id="notesBody"></div>
+            </article>
+
+            <article class="notes-card">
+              <div class="card-head">
+                <h2>Build handoff</h2>
+                <span>States and events</span>
+              </div>
+              <div class="notes-body">
+                <div class="handoff-grid" id="handoffBody"></div>
+              </div>
+            </article>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const flows = [
+      {
+        id: "landing",
+        type: "Acquire",
+        label: "Landing",
+        sub: "Problem, proof, pricing",
+        url: "https://ghoast.app/",
+        title: "Landing and acquisition",
+        meta: "First impression",
+        notesType: "Conversion",
+        ux: [
+          ["Primary goal", "Make the user understand the product in five seconds: find non-followers, rank them, clean safely."],
+          ["Key tension", "The product must feel sharper than generic unfollower apps, but trustworthy enough for sensitive account access."],
+          ["Primary CTA", "Scan my account. Secondary CTA should move to the tier system or how-it-works section."]
+        ],
+        handoff: [
+          "Track landing_view, hero_cta_click, pricing_cta_click, faq_open.",
+          "SEO page should target Instagram non-followers, clean Instagram following list, follower ratio.",
+          "FAQ must include affiliation, password storage, risk, and data deletion."
+        ],
+        screen: landingScreen
+      },
+      {
+        id: "auth",
+        type: "Account",
+        label: "Sign up",
+        sub: "Create Ghoast account",
+        url: "https://ghoast.app/register",
+        title: "Ghoast account creation",
+        meta: "Email and password",
+        notesType: "Activation",
+        ux: [
+          ["Primary goal", "Create a Ghoast account with minimal friction while setting trust expectations before Instagram connection."],
+          ["Trust cue", "Password belongs to Ghoast only. Instagram password is not collected or stored."],
+          ["Failure states", "Duplicate email, weak password, network failure, rate-limited auth attempt."]
+        ],
+        handoff: [
+          "POST /api/v1/auth/register returns safe user object and session.",
+          "Log sign_up_started and sign_up_completed.",
+          "Require refresh-token rotation and logout support before production."
+        ],
+        screen: authScreen
+      },
+      {
+        id: "connect",
+        type: "Trust",
+        label: "Connect IG",
+        sub: "Disclosure and session",
+        url: "https://ghoast.app/app/connect",
+        title: "Instagram connection",
+        meta: "Disclosure gate",
+        notesType: "Risk",
+        ux: [
+          ["Primary goal", "Get explicit consent before account access and explain the tradeoff honestly."],
+          ["Critical copy", "Ghoast is independent, does not store Instagram passwords, and cannot guarantee Instagram will never rate-limit actions."],
+          ["Fallback path", "Consider a future no-login analyze-only mode using Instagram export ZIP files."]
+        ],
+        handoff: [
+          "Connect flow must never persist plaintext Instagram tokens.",
+          "Encrypted session fields must never be returned in API responses.",
+          "Track disclosure_accept, instagram_connect_started, instagram_connect_success, instagram_connect_failed."
+        ],
+        screen: connectScreen
+      },
+      {
+        id: "scan",
+        type: "System",
+        label: "Ghost Scan",
+        sub: "Durable background scan",
+        url: "https://ghoast.app/app/scan",
+        title: "Ghost Scan progress",
+        meta: "Scan, compare, score",
+        notesType: "Progress",
+        ux: [
+          ["Primary goal", "Make the wait feel transparent: following list, followers list, comparison, and scoring."],
+          ["System need", "Scan must be durable and resumable. Detached in-process jobs are not enough for launch."],
+          ["Failure states", "Session expired, challenge required, rate limit, network failure, scan already running."]
+        ],
+        handoff: [
+          "Use durable scan jobs, not fire-and-forget promises.",
+          "Expose queued, running, complete, failed, and needs_reconnect states.",
+          "Stream progress by SSE or polling."
+        ],
+        screen: scanScreen
+      },
+      {
+        id: "dashboard",
+        type: "Core",
+        label: "Dashboard",
+        sub: "Stats and account status",
+        url: "https://ghoast.app/app/dashboard",
+        title: "Dashboard overview",
+        meta: "Account hygiene command center",
+        notesType: "Overview",
+        ux: [
+          ["Primary goal", "Show the user the result immediately: ghost count, ratio, last scan, and cleanup options."],
+          ["Information hierarchy", "Numbers first, then selected account, then recommended next action."],
+          ["Empty states", "No account, no scan, clean list, failed scan, expired session."]
+        ],
+        handoff: [
+          "Dashboard contracts must include account, stats, scan status, queue status.",
+          "Stats should not mismatch frontend DTOs.",
+          "Track dashboard_view and first_ghost_list_view."
+        ],
+        screen: dashboardScreen
+      },
+      {
+        id: "ghosts",
+        type: "Decide",
+        label: "Ghost List",
+        sub: "Rank, filter, protect",
+        url: "https://ghoast.app/app/ghosts",
+        title: "Ranked ghost list",
+        meta: "Priority Score and Cut Tiers",
+        notesType: "Decision",
+        ux: [
+          ["Primary goal", "Turn a raw non-follower list into a cleanup decision system."],
+          ["Key feature", "Tier 5 is protected. Keep List accounts are protected. Tier 1 can be preselected for paid queue."],
+          ["Controls", "Search, tier tabs, sort, row details, manual unfollow, whitelist, select for queue."]
+        ],
+        handoff: [
+          "GET /accounts/:id/ghosts should return ghosts plus pagination object.",
+          "Do not accept score or tier from client input.",
+          "Track filter_tier, search_ghosts, manual_unfollow_click, keep_list_add."
+        ],
+        screen: ghostsScreen
+      },
+      {
+        id: "queue",
+        type: "Execute",
+        label: "Safe Queue",
+        sub: "Paid cleanup engine",
+        url: "https://ghoast.app/app/queue",
+        title: "Safe Queue",
+        meta: "Background cleanup",
+        notesType: "Execution",
+        ux: [
+          ["Primary goal", "Let paid users clean selected ghosts without babysitting the tab."],
+          ["Trust behavior", "Show selected count, estimated duration, delay rules, caps, and pause states before start."],
+          ["Live states", "Running, paused, rate-limited, session expired, canceled, completed."]
+        ],
+        handoff: [
+          "Dedicated worker process required. Do not track active workers only in memory.",
+          "Use consistent queue response fields and event names.",
+          "Events: job_started, job_completed, queue_paused, queue_resumed, queue_completed, queue_cancelled."
+        ],
+        screen: queueScreen
+      },
+      {
+        id: "billing",
+        type: "Monetize",
+        label: "Billing",
+        sub: "Upgrade and credits",
+        url: "https://ghoast.app/app/billing",
+        title: "Plans and billing",
+        meta: "Free to paid conversion",
+        notesType: "Revenue",
+        ux: [
+          ["Primary goal", "Monetize the moment after value is proven: user has seen their ghost count and wants faster cleanup."],
+          ["Package logic", "Free reveals the problem. Pro solves cleanup. Pro+ adds control and multi-account."],
+          ["Trust cue", "Use Stripe Checkout and Portal. Show what happens to data and accounts on downgrade."]
+        ],
+        handoff: [
+          "Stripe webhook processing must be idempotent.",
+          "Persist Stripe webhook events to prevent double-credit or missed tier updates.",
+          "Track upgrade_click, checkout_started, checkout_completed, portal_opened."
+        ],
+        screen: billingScreen
+      },
+      {
+        id: "settings",
+        type: "Control",
+        label: "Settings",
+        sub: "Accounts, privacy, deletion",
+        url: "https://ghoast.app/app/settings",
+        title: "Settings and controls",
+        meta: "User trust center",
+        notesType: "Retention",
+        ux: [
+          ["Primary goal", "Give users control over connected accounts, billing, data, and account deletion."],
+          ["Required controls", "Disconnect Instagram, export data, manage sessions, billing portal, delete account."],
+          ["Compliance", "Deletion must be easy to find and complete without support for normal users."]
+        ],
+        handoff: [
+          "DELETE /api/v1/users/me must be idempotent.",
+          "Cancel queues before deleting account data.",
+          "Apple and Google require account deletion paths for apps that create accounts."
+        ],
+        screen: settingsScreen
+      },
+      {
+        id: "recover",
+        type: "Recover",
+        label: "Reconnect",
+        sub: "Expired session recovery",
+        url: "https://ghoast.app/app/reconnect",
+        title: "Session recovery",
+        meta: "Repair path",
+        notesType: "Recovery",
+        ux: [
+          ["Primary goal", "Convert a scary failure into a clear repair path."],
+          ["Trigger states", "Instagram session expired, checkpoint, challenge required, action block, token decrypt failure."],
+          ["Behavior", "Pause scan or queue, mark account needs_reconnect, preserve completed data, guide user back to connect flow."]
+        ],
+        handoff: [
+          "Do not continue queue while account needs_reconnect.",
+          "Do not delete ghost list on session expiry.",
+          "Track reconnect_prompt_view, reconnect_started, reconnect_success."
+        ],
+        screen: reconnectScreen
+      }
+    ];
+
+    let activeIndex = 0;
+
+    const sideNav = document.getElementById("sideNav");
+    const journey = document.getElementById("journey");
+    const screenTitle = document.getElementById("screenTitle");
+    const screenMeta = document.getElementById("screenMeta");
+    const screenUrl = document.getElementById("screenUrl");
+    const screenMock = document.getElementById("screenMock");
+    const notesBody = document.getElementById("notesBody");
+    const handoffBody = document.getElementById("handoffBody");
+    const noteType = document.getElementById("noteType");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    function renderNav() {
+      sideNav.innerHTML = flows.map((flow, index) => `
+        <button class="nav-step ${index === activeIndex ? "active" : ""}" type="button" data-index="${index}">
+          <span class="step-index">${String(index + 1).padStart(2, "0")}</span>
+          <span class="step-label">
+            <strong>${flow.label}</strong>
+            <span>${flow.sub}</span>
+          </span>
+        </button>
+      `).join("");
+
+      journey.innerHTML = flows.map((flow, index) => `
+        <button class="journey-node ${index === activeIndex ? "active" : ""}" type="button" data-index="${index}">
+          <span class="node-top">
+            <span class="node-number">${String(index + 1).padStart(2, "0")}</span>
+            <span class="node-type">${flow.type}</span>
+          </span>
+          <strong>${flow.label}</strong>
+          <p>${flow.sub}</p>
+        </button>
+      `).join("");
+
+      document.querySelectorAll("[data-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeIndex = Number(button.dataset.index);
+          render();
+        });
+      });
+    }
+
+    function render() {
+      const flow = flows[activeIndex];
+      renderNav();
+      screenTitle.textContent = flow.title;
+      screenMeta.textContent = flow.meta;
+      screenUrl.textContent = flow.url;
+      noteType.textContent = flow.notesType;
+      screenMock.innerHTML = flow.screen();
+      notesBody.innerHTML = flow.ux.map(([heading, body]) => `
+        <section class="note-section">
+          <h3>${heading}</h3>
+          <p>${body}</p>
+        </section>
+      `).join("");
+      handoffBody.innerHTML = flow.handoff.map((item) => `
+        <div class="handoff-item">
+          <span class="token"></span>
+          <span>${item}</span>
+        </div>
+      `).join("");
+      prevBtn.disabled = activeIndex === 0;
+      nextBtn.disabled = activeIndex === flows.length - 1;
+    }
+
+    prevBtn.addEventListener("click", () => {
+      if (activeIndex > 0) {
+        activeIndex -= 1;
+        render();
+      }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      if (activeIndex < flows.length - 1) {
+        activeIndex += 1;
+        render();
+      }
+    });
+
+    function appNav(extra = "") {
+      return `
+        <div class="mock-nav">
+          <div class="mock-wordmark"><span class="mock-logo">G</span><span>Gh<span style="color: var(--cyan)">oa</span>st</span></div>
+          <div class="mock-links">
+            <span>Scan</span><span>Rank</span><span>Queue</span>${extra}
+          </div>
+        </div>
+      `;
+    }
+
+    function landingScreen() {
+      return `
+        ${appNav('<button class="mock-btn">Scan my account</button>')}
+        <div class="hero-layout">
+          <section>
+            <span class="eyebrow"><span class="pulse"></span> Ranked account hygiene</span>
+            <h2 class="hero-title">See who <span class="grad">ghosted your count.</span></h2>
+            <p class="hero-copy">Ghoast scans your Instagram following list, ranks who does not follow back, and helps you clean the obvious cuts with a safer background queue.</p>
+            <div class="actions">
+              <button class="mock-btn">Scan my account</button>
+              <button class="ghost-btn">See the tiers</button>
+            </div>
+          </section>
+          <aside class="metric-card">
+            <div class="metric-grid">
+              <div class="mini-stat"><div class="stat-value">2,184</div><div class="stat-label">Following</div></div>
+              <div class="mini-stat"><div class="stat-value" style="color: var(--red)">318</div><div class="stat-label">Ghosts</div></div>
+              <div class="mini-stat"><div class="stat-value" style="color: var(--green)">1.42</div><div class="stat-label">Ratio</div></div>
+            </div>
+            ${tierRows()}
+            <button class="mock-btn" style="width:100%; margin-top: 14px;">Clean Tier 1</button>
+          </aside>
+        </div>
+      `;
+    }
+
+    function authScreen() {
+      return `
+        ${appNav()}
+        <div class="auth-shell">
+          <section class="panel">
+            <span class="eyebrow"><span class="pulse"></span> Step 1 of 3</span>
+            <h2 class="hero-title" style="font-size: 42px;">Create your Ghoast account.</h2>
+            <p class="hero-copy">Your Ghoast login is separate from Instagram. Instagram passwords are never stored by Ghoast.</p>
+            <div class="trust-list">
+              <div class="trust-item"><span class="check">✓</span><span>Full ghost list available on Free.</span></div>
+              <div class="trust-item"><span class="check">✓</span><span>Paid queue only after you see scan value.</span></div>
+              <div class="trust-item"><span class="check">✓</span><span>Delete your Ghoast data from settings.</span></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="auth-form">
+              <div class="field"><label>Email</label><input value="alex@example.com" readonly /></div>
+              <div class="field"><label>Password</label><input value="••••••••••••" readonly /></div>
+              <button class="mock-btn">Create account</button>
+              <button class="ghost-btn">Already have an account</button>
+              <div class="disclosure">Next, Ghoast will ask for permission to connect Instagram. You will see the risk disclosure before continuing.</div>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function connectScreen() {
+      return `
+        ${appNav()}
+        <div class="connect-grid">
+          <section class="panel">
+            <span class="eyebrow"><span class="pulse"></span> Required disclosure</span>
+            <h2 style="margin:16px 0 10px;font-size:34px;letter-spacing:-.05em;">Connect Instagram with eyes open.</h2>
+            <p class="hero-copy">Ghoast is independent from Instagram and Meta. Cleanup features require authenticated access, and no tool can promise Instagram will never rate-limit or challenge account actions.</p>
+            <div class="trust-list">
+              <div class="trust-item"><span class="check">✓</span><span>No Instagram password is stored.</span></div>
+              <div class="trust-item"><span class="check">✓</span><span>Session access is encrypted before storage.</span></div>
+              <div class="trust-item"><span class="check">✓</span><span>Queue actions use caps, delays, and pause logic.</span></div>
+            </div>
+            <div class="actions" style="margin-top:18px;">
+              <button class="mock-btn">I understand, continue</button>
+              <button class="ghost-btn">Use analyze-only mode</button>
+            </div>
+          </section>
+          <section class="insta-window">
+            <div class="ig-logo"></div>
+            <h3 style="margin:0 0 8px;">Instagram session</h3>
+            <p style="max-width:320px;color:#555;line-height:1.45;margin:0 0 18px;">Authenticated connection confirms the account and allows scan and cleanup actions.</p>
+            <button style="border:0;background:#111;color:#fff;border-radius:8px;padding:10px 18px;font-weight:800;">Continue securely</button>
+          </section>
+        </div>
+      `;
+    }
+
+    function scanScreen() {
+      return `
+        ${appNav()}
+        <section class="progress-wrap">
+          <div style="text-align:center;">
+            <span class="eyebrow"><span class="pulse"></span> Ghost Scan running</span>
+            <div class="scan-ring"><strong>72%</strong></div>
+            <h2 style="margin:0 0 8px;font-size:30px;letter-spacing:-.04em;">Comparing following and followers.</h2>
+            <p class="hero-copy" style="margin-left:auto;margin-right:auto;">Ghoast is collecting the full lists, finding non-followers, then scoring each account into a cleanup tier.</p>
+          </div>
+          <div class="scan-steps">
+            <div class="scan-step done"><span class="check">✓</span><span>Following list fetched</span><span>2,184</span></div>
+            <div class="scan-step done"><span class="check">✓</span><span>Follower list fetched</span><span>1,538</span></div>
+            <div class="scan-step live"><span class="pulse"></span><span>Calculating ghost set</span><span>318 found</span></div>
+            <div class="scan-step"><span class="status-dot"></span><span>Scoring priority tiers</span><span>Queued</span></div>
+          </div>
+        </section>
+      `;
+    }
+
+    function dashboardScreen() {
+      return `
+        ${appNav('<button class="ghost-btn">Rescan</button>')}
+        <div class="dashboard-layout">
+          <div class="dash-stats">
+            <div class="mini-stat"><div class="stat-value">1,538</div><div class="stat-label">Followers</div></div>
+            <div class="mini-stat"><div class="stat-value">2,184</div><div class="stat-label">Following</div></div>
+            <div class="mini-stat"><div class="stat-value" style="color: var(--red)">318</div><div class="stat-label">Ghosts</div></div>
+            <div class="mini-stat"><div class="stat-value" style="color: var(--cyan)">0.70</div><div class="stat-label">Ratio</div></div>
+          </div>
+          <div class="dash-main">
+            <section class="panel">
+              <div class="account-chip">
+                <span class="avatar">AX</span>
+                <span class="account-meta"><strong>@alexcreates</strong><span>Last scanned 4 min ago</span></span>
+                <span class="badge cyan">Connected</span>
+              </div>
+              ${tierRows()}
+            </section>
+            <section class="panel">
+              <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;">
+                <div><strong>Recommended next action</strong><p style="margin:4px 0 0;color:var(--muted);font-size:12px;">Tier 1 is ready for review.</p></div>
+                <button class="mock-btn">Review 86 ghosts</button>
+              </div>
+              <div class="bar"><span style="width: 27%;"></span></div>
+              <p style="color:var(--muted);font-size:12px;line-height:1.5;">Cleaning Tier 1 would remove the lowest-score non-followers while leaving Tier 5 protected.</p>
+            </section>
+          </div>
+        </div>
+      `;
+    }
+
+    function ghostsScreen() {
+      return `
+        ${appNav('<button class="mock-btn">Start Safe Queue</button>')}
+        <div class="panel" style="margin-bottom:12px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+            <div class="actions">
+              <span class="badge red">Tier 1: 86</span>
+              <span class="badge orange">Tier 2: 92</span>
+              <span class="badge yellow">Tier 3: 77</span>
+              <span class="badge green">Tier 5 protected: 14</span>
+            </div>
+            <button class="ghost-btn">Search @handle</button>
+          </div>
+        </div>
+        <div class="ghost-table">
+          <div class="ghost-row head"><span></span><span>Account</span><span>Score</span><span class="hide-sm">Tier</span><span class="hide-sm">Action</span></div>
+          ${ghostRow("on", "@oldcollab", "No recent posts", "12", "Safe", "red", "Selected")}
+          ${ghostRow("on", "@randombrand", "Follows 8,912", "18", "Safe", "red", "Selected")}
+          ${ghostRow("", "@citycoffee", "Local business", "44", "Your call", "yellow", "Review")}
+          ${ghostRow("", "@musiclabel", "Brand account", "68", "Might keep", "cyan", "Keep?")}
+          ${ghostRow("lock", "@industrymentor", "High-value account", "91", "Protected", "green", "Locked")}
+        </div>
+      `;
+    }
+
+    function queueScreen() {
+      return `
+        ${appNav('<button class="ghost-btn">Cancel queue</button>')}
+        <div class="queue-panel">
+          <section class="panel">
+            <span class="eyebrow"><span class="pulse"></span> Safe Queue running</span>
+            <h2 style="font-size:34px;margin:16px 0 8px;letter-spacing:-.05em;">42 of 86 cleaned.</h2>
+            <div class="bar"><span style="width:49%;"></span></div>
+            <p class="hero-copy" style="margin-top:14px;">Next action in 28 seconds. Queue will pause automatically after this session block.</p>
+          </section>
+          <div class="queue-summary">
+            <section class="panel"><div class="stat-value">44</div><div class="stat-label">Remaining</div></section>
+            <section class="panel"><div class="stat-value">~38m</div><div class="stat-label">Estimated finish</div></section>
+          </div>
+          <section class="panel">
+            <div class="timeline">
+              <div class="timeline-item"><span class="status-dot done"></span><span>@oldcollab unfollowed</span><span>Done</span></div>
+              <div class="timeline-item"><span class="status-dot done"></span><span>@randombrand unfollowed</span><span>Done</span></div>
+              <div class="timeline-item"><span class="status-dot live"></span><span>@weekendpage waiting for delay</span><span>28s</span></div>
+              <div class="timeline-item"><span class="status-dot pause"></span><span>Session pause scheduled</span><span>After 3</span></div>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function billingScreen() {
+      return `
+        ${appNav()}
+        <div style="margin-bottom:16px;">
+          <span class="eyebrow"><span class="pulse"></span> Upgrade after the aha moment</span>
+          <h2 style="margin:14px 0 8px;font-size:36px;letter-spacing:-.05em;">Clean faster when the list is worth it.</h2>
+          <p class="hero-copy">Free shows the full ghost list. Pro unlocks the background queue. Pro+ adds control for serious account hygiene.</p>
+        </div>
+        <div class="billing-grid">
+          <section class="plan"><strong>Free</strong><div class="price">$0</div><ul><li>Full Ghost Scan</li><li>Ranked ghost list</li><li>10 manual unfollows per day</li></ul><button class="ghost-btn">Current plan</button></section>
+          <section class="plan featured"><strong>Pro</strong><div class="price">$9.99</div><ul><li>Safe Queue</li><li>150 daily queue actions</li><li>CSV export</li><li>Ratio Trail</li></ul><button class="mock-btn">Start Pro</button></section>
+          <section class="plan"><strong>Pro+</strong><div class="price">$24.99</div><ul><li>3 Instagram accounts</li><li>Keep List</li><li>Extended history</li><li>Advanced controls</li></ul><button class="ghost-btn">Start Pro+</button></section>
+        </div>
+      `;
+    }
+
+    function settingsScreen() {
+      return `
+        ${appNav()}
+        <div class="settings-grid">
+          <section class="panel">
+            <h2 style="margin:0 0 12px;">Connected accounts</h2>
+            <div class="account-chip"><span class="avatar">AX</span><span class="account-meta"><strong>@alexcreates</strong><span>Connected, Pro plan</span></span><button class="ghost-btn">Disconnect</button></div>
+            <div class="account-chip"><span class="avatar">BC</span><span class="account-meta"><strong>@brandcorner</strong><span>Available on Pro+</span></span><button class="ghost-btn">Upgrade</button></div>
+          </section>
+          <section class="panel">
+            <h2 style="margin:0 0 12px;">Trust controls</h2>
+            <ul class="settings-list">
+              <li>Export my Ghoast data</li>
+              <li>Manage billing in Stripe Portal</li>
+              <li>Log out of all sessions</li>
+              <li>Review Keep List</li>
+            </ul>
+          </section>
+          <section class="panel danger-zone" style="grid-column:1 / -1;">
+            <h2 style="margin:0 0 8px;">Delete account</h2>
+            <p class="hero-copy">Deletes Ghoast user data, encrypted Instagram sessions, ghost records, snapshots, and queued jobs. Active billing must be canceled or handled before deletion completes.</p>
+            <button class="danger-btn">Delete my Ghoast account</button>
+          </section>
+        </div>
+      `;
+    }
+
+    function reconnectScreen() {
+      return `
+        ${appNav('<button class="mock-btn">Reconnect account</button>')}
+        <div class="auth-shell">
+          <section class="panel">
+            <span class="eyebrow"><span class="pulse"></span> Action required</span>
+            <h2 class="hero-title" style="font-size:42px;">Instagram needs a fresh session.</h2>
+            <p class="hero-copy">Ghoast paused scan and queue actions for @alexcreates. Your completed cleanup stays saved, but no new actions will run until you reconnect.</p>
+            <div class="actions">
+              <button class="mock-btn">Reconnect Instagram</button>
+              <button class="ghost-btn">View saved ghost list</button>
+            </div>
+          </section>
+          <section class="panel">
+            <h3 style="margin:0 0 12px;">What happened</h3>
+            <div class="timeline">
+              <div class="timeline-item"><span class="status-dot done"></span><span>42 queue jobs completed</span><span>Saved</span></div>
+              <div class="timeline-item"><span class="status-dot pause"></span><span>Instagram session expired</span><span>Paused</span></div>
+              <div class="timeline-item"><span class="status-dot"></span><span>44 jobs waiting</span><span>Held</span></div>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    function tierRows() {
+      return `
+        <div class="tier-row"><span class="tier-dot"></span><span>Tier 1: Safe to Cut</span><strong>86</strong></div>
+        <div class="tier-row"><span class="tier-dot t2"></span><span>Tier 2: Probably Cut</span><strong>92</strong></div>
+        <div class="tier-row"><span class="tier-dot t3"></span><span>Tier 3: Your Call</span><strong>77</strong></div>
+        <div class="tier-row"><span class="tier-dot t4"></span><span>Tier 4: Might Keep</span><strong>49</strong></div>
+        <div class="tier-row"><span class="tier-dot t5"></span><span>Tier 5: Keep Following</span><strong>14</strong></div>
+      `;
+    }
+
+    function ghostRow(box, handle, detail, score, tier, color, action) {
+      const boxContent = box === "on" ? "✓" : box === "lock" ? "L" : "";
+      return `
+        <div class="ghost-row">
+          <span class="checkbox ${box}">${boxContent}</span>
+          <span><strong>${handle}</strong><br><span style="color:var(--muted)">${detail}</span></span>
+          <span class="score">${score}</span>
+          <span class="hide-sm"><span class="badge ${color}">${tier}</span></span>
+          <span class="hide-sm" style="color:var(--muted)">${action}</span>
+        </div>
+      `;
+    }
+
+    render();
+  </script>
+</body>
+</html>

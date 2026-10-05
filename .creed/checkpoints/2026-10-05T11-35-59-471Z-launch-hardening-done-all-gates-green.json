@@ -1,0 +1,81 @@
+{
+  "title": "Launch hardening done; all gates green",
+  "note": null,
+  "next_action": "Founder: set Stripe env + deploy per docs/production/*.md; then run FIRST_USER_VALIDATION_PLAN.md (20-50 users). Dev: see LAUNCH_READINESS_REPORT.md.",
+  "created_at": "2026-10-05T11:35:59.530Z",
+  "agent_id": "unknown",
+  "state_snapshot": {
+    "agent_id": "unknown",
+    "task_id": "task_f984dd3648",
+    "project": "GHOAST-master",
+    "objective": "GHOAST launch hardening complete; next: founder Stripe+deploy, then first-user validation",
+    "current_plan": [],
+    "completed_work": [],
+    "unresolved_work": [],
+    "files_changed": [],
+    "test_state": {
+      "overall": "unknown",
+      "suites": {}
+    },
+    "decisions": [],
+    "known_failures": [],
+    "research_evidence": [],
+    "environment_state": {},
+    "next_action": "Founder: set Stripe env + deploy per docs/production/*.md; then run FIRST_USER_VALIDATION_PLAN.md (20-50 users). Dev: see LAUNCH_READINESS_REPORT.md.",
+    "last_checkpoint": null,
+    "checkpoints": [],
+    "model": null,
+    "provider": null,
+    "created_at": "2026-10-05T11:35:59.363Z",
+    "updated_at": "2026-10-05T11:35:59.363Z",
+    "schema_hint": {
+      "agent_id": "string",
+      "task_id": "string",
+      "project": "string",
+      "objective": "string",
+      "current_plan": [
+        {
+          "step": "string",
+          "status": "pending|active|done|blocked"
+        }
+      ],
+      "completed_work": [
+        "string"
+      ],
+      "unresolved_work": [
+        "string"
+      ],
+      "files_changed": [
+        "string"
+      ],
+      "test_state": {
+        "overall": "unknown|pass|fail|partial",
+        "suites": {}
+      },
+      "decisions": [
+        "string"
+      ],
+      "known_failures": [
+        "string"
+      ],
+      "research_evidence": [
+        "string"
+      ],
+      "environment_state": {
+        "note": "arbitrary JSON"
+      },
+      "next_action": "string — THE resumption point",
+      "last_checkpoint": "ISO string",
+      "checkpoints": [
+        "paths"
+      ],
+      "model": "string (metadata only — §21)",
+      "provider": "string (metadata only — §21)"
+    }
+  },
+  "git": {
+    "error": "Command failed: git status --porcelain=v1 -b\nfatal: not a git repository (or any of the parent direc"
+  },
+  "managed_processes": [],
+  "environment_state": {}
+}

@@ -1,0 +1,30 @@
+{
+  "name": "ghoast",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GHOAST — privacy-first Instagram relationship intelligence. Reads your official Instagram data export entirely on your device. No login, no password, no upload.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/web",
+    "test": "npm run test --workspace=apps/web",
+    "test:unit": "npm run test:unit --workspace=apps/web",
+    "test:e2e": "npm run test:e2e --workspace=apps/web",
+    "test:coverage": "npm run test:coverage --workspace=apps/web",
+    "typecheck": "npm run typecheck --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web",
+    "lint:fix": "npm run lint:fix --workspace=apps/web",
+    "verify": "npm run typecheck && npm run lint && npm run test:unit && npm run build"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.0",
+    "typescript": "^5.4.0"
+  },
+  "packageManager": "npm@10.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
