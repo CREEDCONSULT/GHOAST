@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { profileUrl } from '@/lib/analysis';
+import { getActiveBatches, recordReceipt } from '@/lib/cleanup';
 import { copy } from '@/lib/copy';
 import { db } from '@/lib/db';
 import { getSettings, setDecision, updateSettings } from '@/lib/store';
@@ -87,11 +88,21 @@ export function ReturnConfirm() {
     if (!pending) return;
     const snaps = await db.snapshots.orderBy('createdAt').reverse().limit(1).toArray();
     const snapshotId = snaps[0]?.id ?? '';
+
+    // Batch integration: if this account is the current item of an active
+    // batch, the answer becomes a batch receipt too.
+    const activeBatches = await getActiveBatches();
+    const batch = activeBatches.find(
+      (b) => b.status === 'running' && b.usernames[b.currentIndex] === pending.username,
+    );
+
     if (outcome === 'yes') {
       await setDecision(pending.username, pending.href, 'handled_self', snapshotId);
+      if (batch) await recordReceipt(batch.id, pending.username, 'confirmed');
       show(copy.cleanup.selfReportNote);
     } else if (outcome === 'keep') {
       await setDecision(pending.username, pending.href, 'kept', snapshotId);
+      if (batch) await recordReceipt(batch.id, pending.username, 'skipped', 'protected instead');
       show(copy.review.undoPrefix('Kept', pending.username));
     }
     // 'no' → leave the decision queued; nothing to change.

@@ -208,6 +208,19 @@ No redesign. Added landing honesty line (password risk framing), privacy-page pa
 ### Environment note
 Port 3000 = stale pre-session process (untouched). Validation servers used :3100/:3101/:3110 (stopped at session end).
 
+---
+
+## 8. Session 3 (2026-10-05) — Batch Cleanup Assistant v1 (`feat/batch-cleanup-assistant-v1`, base 911704a)
+
+**Scope honored:** invariants preserved (no credentials/cookies/private-API/scraping/server-side export storage/autonomous operation); extension is a user-started execution adapter; `handled_verified` remains export-only.
+
+**Web:** `lib/cleanup.ts` batch library (dedupe, kept-exclusion, cursor lifecycle, receipts), Dexie v2 `cleanupBatches` store, AccountList first-N batch toolbar (5/10/25/50/100/200/custom over the filtered+sorted set), `/cleanup` page (progress/ETA/current card/Start-Pause-Resume-Skip-Stop/failures/receipts/pacing), manual driver wired through ReturnConfirm receipts, optional extension driver via `lib/extension.ts` bridge (origin+protocol validated), Cleanup nav entry.
+**Extension:** `apps/extension` MV3 — `tabs`+`storage` only, no cookies/webRequest/scripting; conservative visible-text DOM control detection; halt taxonomy (challenge/rate-limit/login/modal/ambiguity); jittered ≥20s pacing; 100% user-started sessions; structured receipts.
+**Fixed under test:** `deleteEverything()` now clears `cleanupBatches` (privacy completeness).
+**Tests:** unit 38 web + 20 extension (origin rejection, dup rejection, pacing floor, DOM fixtures, kept-exclusion, self-vs-verified, halt-keeps-cursor, pause/resume, persistence, manifest audit); e2e 70/70 incl. full manual batch flow on desktop+mobile.
+**Docs:** `BATCH_CLEANUP_ASSISTANT_V1_REPORT.md` + `apps/extension/README.md`.
+**Not done (by instruction):** no deployment, no real-account batches; extension needs `NEXT_PUBLIC_GHOAST_EXTENSION_ID` + production-domain manifest substitution before the assistant button activates in prod.
+
 ### Deliverables this session
 `docs/production/{CURRENT_STATE,REAL_EXPORT_COMPATIBILITY,SECURITY_PRIVACY_AUDIT,BILLING_ENTITLEMENT,DEPLOYMENT_RUNBOOK,ANALYTICS_SCHEMA,FIRST_USER_VALIDATION_PLAN}.md`, `LAUNCH_READINESS_REPORT.md` (verdict: **READY WITH CONDITIONS** — conditions are founder Stripe/hosting actions, not code).
 

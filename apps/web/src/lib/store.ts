@@ -221,7 +221,7 @@ export async function deleteSnapshot(snapshotId: string): Promise<void> {
 export async function deleteEverything(): Promise<void> {
   await db.transaction(
     'rw',
-    [db.snapshots, db.relations, db.decisions, db.comparisons, db.events, db.settings],
+    [db.snapshots, db.relations, db.decisions, db.comparisons, db.events, db.settings, db.cleanupBatches],
     async () => {
       await Promise.all([
         db.snapshots.clear(),
@@ -230,6 +230,7 @@ export async function deleteEverything(): Promise<void> {
         db.comparisons.clear(),
         db.events.clear(),
         db.settings.clear(),
+        db.cleanupBatches.clear(),
       ]);
     },
   );

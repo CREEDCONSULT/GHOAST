@@ -1,0 +1,22 @@
+{
+  "name": "extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GHOAST Chrome Companion — user-started, receipt-producing cleanup assistant. Execution adapter only.",
+  "scripts": {
+    "build": "esbuild src/content.ts --bundle --format=iife --outfile=dist/content.js && esbuild src/background.ts --bundle --format=esm --outfile=dist/background.js && node scripts/copy-manifest.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "test:unit": "jest --runInBand",
+    "lint": "echo \"extension: lint via typecheck\""
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@types/jest": "^29.5.0",
+    "esbuild": "^0.24.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -114,6 +114,54 @@ export interface SettingsRecord {
   reviewSession: { snapshotId: string; done: number; opensSinceBreak: number } | null;
 }
 
+// ── Cleanup batches (Batch Cleanup Assistant v1) ────────────────────────────
+// Execution is ALWAYS user-directed: the batch orders work; a human (or the
+// optional browser assistant driven by an explicit user-started session) acts
+// inside Instagram. A browser action may only ever become handled_self; only
+// a later export can reconcile to handled_verified (invariant, spec §8.5).
+
+export type CleanupBatchStatus = 'draft' | 'running' | 'paused' | 'stopped' | 'done';
+
+export type CleanupReceiptKind =
+  | 'opened' // profile opened for the user to act on
+  | 'requested' // assistant attempted an unfollow click
+  | 'confirmed' // user/assistant confirmed the unfollow happened (self-reported)
+  | 'skipped' // user/assistant intentionally passed
+  | 'failed' // action could not be completed (ambiguous/absent controls…)
+  | 'stopped'; // session halted (pacing break, challenge, user stop)
+
+export interface CleanupReceipt {
+  ts: number;
+  username: string;
+  kind: CleanupReceiptKind;
+  detail?: string; // freeform reason for failed/stopped — never raw DOM or page data
+}
+
+export interface CleanupPacing {
+  /** seconds between assistant-driven actions (assistant path) */
+  intervalSeconds: number;
+  /** break reminder after this many opens/actions */
+  breakEvery: number;
+}
+
+export interface CleanupBatch {
+  id: string;
+  sourceSnapshotId: string;
+  createdAt: number;
+  status: CleanupBatchStatus;
+  usernames: string[]; // ordered work list (no duplicates by construction)
+  currentIndex: number;
+  completed: number;
+  skipped: number;
+  failed: number;
+  pacing: CleanupPacing;
+  receipts: CleanupReceipt[];
+  /** 'manual' = user drives via deep links; 'extension' = browser assistant */
+  driver: 'manual' | 'extension';
+}
+
+export const DEFAULT_CLEANUP_PACING: CleanupPacing = { intervalSeconds: 45, breakEvery: 25 };
+
 export const DEFAULT_SETTINGS: SettingsRecord = {
   id: 'app',
   theme: 'dark',

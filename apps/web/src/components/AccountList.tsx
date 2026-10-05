@@ -111,8 +111,15 @@ interface AccountListProps {
     onKeep: (usernames: string[]) => void;
     onSave: (usernames: string[]) => void;
   };
+  /** Batch Cleanup Assistant: turns the current filtered+sorted result into a batch of the first N. */
+  batchTools?: {
+    onCreateBatch: (usernames: string[]) => void;
+    excludedCount?: number; // kept/queued others inform the hint
+  };
   skeleton?: boolean;
 }
+
+const BATCH_QUICK_N = [5, 10, 25, 50, 100, 200] as const;
 
 export function AccountList({
   items,
@@ -123,11 +130,14 @@ export function AccountList({
   renderActions,
   emptyMessage,
   bulkActions,
+  batchTools,
   skeleton,
 }: AccountListProps) {
   const [query, setQuery] = useState('');
   const [band, setBand] = useState<BandFilter>(initialBand);
   const [sort, setSort] = useState<SortKey>('oldest');
+  const [batchN, setBatchN] = useState<number>(25);
+  const [customN, setCustomN] = useState('');
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [renderLimit, setRenderLimit] = useState(200); // progressive render: keeps 5k+ rows at 60fps (spec §22)
   const selectionMode = selection.size > 0;
@@ -197,8 +207,56 @@ export function AccountList({
     );
   }
 
+  const effectiveN = customN.trim() ? Math.max(1, Math.min(Number(customN) || 1, filtered.length)) : batchN;
+
   return (
     <div>
+      {batchTools && items.length > 0 && (
+        <div className="card mb-4">
+          <div className="spread wrap" style={{ rowGap: 8 }}>
+            <span className="micro muted">
+              Batch the current filtered list —{' '}
+              <span className="tnum">{filtered.length.toLocaleString()}</span> match
+            </span>
+            <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {BATCH_QUICK_N.map((n) => (
+                <button
+                  key={n}
+                  className={`chip ${!customN && batchN === n ? 'active' : ''}`}
+                  aria-pressed={!customN && batchN === n}
+                  onClick={() => {
+                    setBatchN(n);
+                    setCustomN('');
+                  }}
+                >
+                  {n}
+                </button>
+              ))}
+              <input
+                className="field-input"
+                style={{ width: 72 }}
+                type="number"
+                min={1}
+                placeholder="N"
+                value={customN}
+                onChange={(e) => setCustomN(e.target.value)}
+                aria-label="Custom batch size"
+              />
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={filtered.length === 0}
+                onClick={() =>
+                  batchTools.onCreateBatch(
+                    filtered.slice(0, effectiveN).map((i) => i.relation.username),
+                  )
+                }
+              >
+                Add first {Math.min(effectiveN, filtered.length)} to Cleanup Batch →
+              </button>
+            </span>
+          </div>
+        </div>
+      )}
       <div className="filterbar">
         {selectionMode && bulkActions ? (
           <div className="chip-row spread">

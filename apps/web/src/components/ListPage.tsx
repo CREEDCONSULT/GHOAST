@@ -13,6 +13,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo } from 'react';
 import { AccountList, rowActionsFor, type BandFilter, type ListItem } from '@/components/AccountList';
 import { useToast } from '@/components/Toast';
+import { createBatch } from '@/lib/cleanup';
 import { copy } from '@/lib/copy';
 import { db } from '@/lib/db';
 import { setDecision } from '@/lib/store';
@@ -86,6 +87,17 @@ export function ListPage({ direction, title, emptyMessage, initialBand, showBand
         emptyMessage={emptyMessage}
         showBandFilters={showBandFilters ?? direction === 'following'}
         initialBand={initialBand}
+        batchTools={
+          direction === 'following'
+            ? {
+                onCreateBatch: (usernames) => {
+                  void createBatch({ usernames, sourceSnapshotId: snapshotId })
+                    .then(() => router.push('/cleanup'))
+                    .catch(() => show('Nothing to batch — those accounts are protected or already queued in a batch.'));
+                },
+              }
+            : undefined
+        }
         stateChips
         bulkActions={{
           onKeep: (usernames) => {

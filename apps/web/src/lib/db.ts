@@ -6,6 +6,7 @@
 
 import Dexie, { type Table } from 'dexie';
 import type {
+  CleanupBatch,
   Comparison,
   Decision,
   LedgerEvent,
@@ -21,6 +22,7 @@ export class GhoastDB extends Dexie {
   comparisons!: Table<Comparison, string>;
   events!: Table<LedgerEvent, number>;
   settings!: Table<SettingsRecord, string>;
+  cleanupBatches!: Table<CleanupBatch, string>;
 
   constructor() {
     super('ghoast');
@@ -31,6 +33,9 @@ export class GhoastDB extends Dexie {
       comparisons: 'id, fromSnapshotId, toSnapshotId, createdAt',
       events: '++id, ts, username, snapshotId, action',
       settings: 'id',
+    });
+    this.version(2).stores({
+      cleanupBatches: 'id, status, createdAt',
     });
   }
 }

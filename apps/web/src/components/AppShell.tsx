@@ -29,6 +29,7 @@ const TABS: Tab[] = [
 const RAIL_EXTRA: Tab[] = [
   { href: '/results/ghosts', label: 'Ghosts', icon: '📋' },
   { href: '/results/fans', label: 'Fans', icon: '✨' },
+  { href: '/cleanup', label: 'Cleanup', icon: '🧹' },
   { href: '/kept', label: 'Protected', icon: '🛡' },
   { href: '/activity', label: 'Activity', icon: '🧾' },
   { href: '/history', label: 'History', icon: '🕘' },

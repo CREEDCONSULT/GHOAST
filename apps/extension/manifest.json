@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "GHOAST Companion",
+  "version": "1.0.0",
+  "description": "Executes your explicit, user-started GHOAST cleanup batch on instagram.com — one profile at a time, with pacing, and stops the moment anything looks unusual. Never touches passwords, cookies, DMs, or posts.",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": [
+    "https://www.instagram.com/*",
+    "https://ghoast.up.railway.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://ghoast.up.railway.app/*",
+      "http://localhost/*"
+    ]
+  },
+  "web_accessible_resources": [],
+  "icons": {}
+}
